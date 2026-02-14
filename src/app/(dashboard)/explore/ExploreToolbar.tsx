@@ -31,8 +31,10 @@ export function ExploreToolbar({
   function buildUrl(updates: { sort?: string; format?: string }) {
     const next = new URLSearchParams(searchParams.toString());
     if (updates.sort !== undefined) next.set("sort", updates.sort);
-    if (updates.format !== undefined)
-      updates.format ? next.set("format", updates.format) : next.delete("format");
+    if (updates.format !== undefined) {
+      if (updates.format) next.set("format", updates.format);
+      else next.delete("format");
+    }
     return `/explore?${next.toString()}`;
   }
 

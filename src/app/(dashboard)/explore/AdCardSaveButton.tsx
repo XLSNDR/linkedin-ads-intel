@@ -7,6 +7,7 @@ export function AdCardSaveButton({ adId }: { adId: string }) {
   return (
     <button
       type="button"
+      data-ad-id={adId}
       className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
       title="Save to collection (coming soon)"
       aria-label="Save to collection"

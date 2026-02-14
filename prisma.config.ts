@@ -10,16 +10,7 @@ export default defineConfig({
     url: env("DATABASE_URL"),
   },
   migrations: {
+    path: "prisma/migrations",
     seed: "npx tsx prisma/seed.ts",
-  },
-  migrate: {
-    async url() {
-      return process.env.DATABASE_URL!;
-    },
-  },
-  db: {
-    async url() {
-      return process.env.DATABASE_URL!;
-    },
   },
 });
