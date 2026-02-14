@@ -1,0 +1,286 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// USERS & AUTH
+// ============================================================================
+
+model User {
+  id            String   @id @default(cuid())
+  clerkId       String   @unique
+  email         String   @unique
+  firstName     String?
+  lastName      String?
+  imageUrl      String?
+
+  // Plan & limits
+  planId        String   @default("free_trial")
+  plan          Plan     @relation(fields: [planId], references: [id])
+
+  // Overrides (null = use plan defaults)
+  maxActiveAdvertisers  Int?
+  refreshFrequency      String? // "weekly" | "monthly"
+  snapshotRetentionDays Int?
+
+  // Relationships
+  userAdvertisers UserAdvertiser[]
+  collections     Collection[]
+
+  // Metadata
+  role          String   @default("user") // "user" | "admin"
+  isActive      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastLoginAt   DateTime?
+
+  @@index([clerkId])
+  @@index([email])
+}
+
+// ============================================================================
+// PLANS
+// ============================================================================
+
+model Plan {
+  id                    String   @id @default(cuid())
+  name                  String   @unique // "free_trial", "starter", "pro", "agency"
+  displayName           String   // "Free Trial", "Starter", "Pro", "Agency"
+
+  // Stripe (optional for MVP)
+  stripePriceId         String?  @unique
+  stripePriceIdMonthly  String?
+  stripePriceIdYearly   String?
+  priceMonthly          Int      @default(0) // cents
+  priceYearly           Int      @default(0) // cents
+
+  // Limits
+  maxActiveAdvertisers  Int
+  refreshFrequency      String   // "manual" | "weekly" | "monthly"
+  maxCollections        Int      // -1 = unlimited
+  snapshotRetentionDays Int      @default(90)
+  impressionEstimates   Boolean  @default(true)
+
+  // Metadata
+  isActive              Boolean  @default(true)
+  sortOrder             Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  users                 User[]
+}
+
+// ============================================================================
+// ADVERTISERS
+// ============================================================================
+
+model Advertiser {
+  id                String   @id @default(cuid())
+
+  // LinkedIn data
+  companyId         String   @unique // LinkedIn company ID
+  companyName       String
+  companyLogoUrl    String?
+  companyUrl        String?
+  industry          String?
+  followerCount     Int?
+
+  // Relationships
+  userAdvertisers   UserAdvertiser[]
+  ads               Ad[]
+
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([companyName])
+}
+
+model UserAdvertiser {
+  id              String   @id @default(cuid())
+
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  advertiserId    String
+  advertiser      Advertiser @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  // Status
+  status          String   @default("active") // "active" | "archived"
+
+  // Scraping
+  firstTrackedAt  DateTime @default(now())
+  lastScrapedAt   DateTime?
+  nextScrapeAt    DateTime?
+  scrapeCount     Int      @default(0)
+
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, advertiserId])
+  @@index([userId, status])
+  @@index([status, nextScrapeAt])
+}
+
+// ============================================================================
+// ADS
+// ============================================================================
+
+model Ad {
+  id                    String   @id @default(cuid())
+
+  // LinkedIn identifiers
+  adId                  String   @unique // From LinkedIn Ads Library URL
+  adLibraryUrl          String   @unique
+
+  // Advertiser
+  advertiserId          String
+  advertiser            Advertiser @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  // Classification
+  format                String   @default("other") // "single_image" | "video" | "document" | "carousel" | "thought_leader" | "other"
+  status                String   @default("active") // "active" | "stopped"
+
+  // Creative
+  introText             String   @db.Text
+  ctaText               String?
+  landingPageUrl        String?
+  landingDomain         String?
+  creativeMediaUrls     String[] // Array of Supabase Storage URLs
+  creativeHash          String   @default("")
+  creativeThumbnailUrl  String?
+
+  // Targeting
+  languages             String[] // ["en", "nl", "de"]
+  locations             String[] // ["United States", "United Kingdom"]
+
+  // Performance (EU only)
+  hasImpressions        Boolean  @default(false)
+  impressionBucket      String?  // "<1k" | "1k-5k" | etc.
+  assumedImpressions    Int?     // Midpoint of bucket
+
+  // Countries (JSON for flexibility)
+  countryData           Json?    // [{ country: "US", percentage: 40, estimatedImpressions: 40000 }]
+
+  // Dates
+  firstSeenDate         DateTime
+  lastSeenDate          DateTime
+  runtimeDays           Int      @default(0)
+
+  // Scraping
+  firstScrapedAt        DateTime @default(now())
+  lastScrapedAt         DateTime @updatedAt
+
+  // Relationships
+  snapshots             Snapshot[]
+  collectionAds         CollectionAd[]
+
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([adId])
+  @@index([advertiserId])
+  @@index([status])
+  @@index([format])
+  @@index([firstSeenDate])
+  @@index([assumedImpressions])
+}
+
+// ============================================================================
+// SNAPSHOTS (Historical data)
+// ============================================================================
+
+model Snapshot {
+  id                    String   @id @default(cuid())
+
+  adId                  String
+  ad                    Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  // Point-in-time data
+  snapshotDate          DateTime
+  status                String   // "active" | "stopped"
+  runtimeDays           Int
+  impressionBucket      String?
+  assumedImpressions    Int?
+  countryData           Json?
+
+  createdAt             DateTime @default(now())
+
+  @@index([adId, snapshotDate])
+  @@index([snapshotDate])
+}
+
+// ============================================================================
+// COLLECTIONS
+// ============================================================================
+
+model Collection {
+  id              String   @id @default(cuid())
+
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name            String
+  description     String?  @db.Text
+
+  collectionAds   CollectionAd[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model CollectionAd {
+  id              String   @id @default(cuid())
+
+  collectionId    String
+  collection      Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  adId            String
+  ad              Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  addedAt         DateTime @default(now())
+
+  @@unique([collectionId, adId])
+  @@index([collectionId])
+  @@index([adId])
+}
+
+// ============================================================================
+// SCRAPER JOBS (Audit log)
+// ============================================================================
+
+model ScrapeJob {
+  id                String   @id @default(cuid())
+
+  jobType           String   // "initial" | "scheduled" | "manual"
+  advertiserId      String
+
+  // Status
+  status            String   // "pending" | "running" | "completed" | "failed"
+
+  // Results
+  adsFound          Int      @default(0)
+  adsNew            Int      @default(0)
+  adsUpdated        Int      @default(0)
+  errorMessage      String?  @db.Text
+
+  // Timing
+  startedAt         DateTime?
+  completedAt       DateTime?
+  durationMs        Int?
+
+  createdAt         DateTime @default(now())
+
+  @@index([advertiserId])
+  @@index([status])
+  @@index([createdAt])
+}
