@@ -36,5 +36,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma generated client (created by postinstall)
+# prisma generated (old prisma-client output - now using default)
 /generated
