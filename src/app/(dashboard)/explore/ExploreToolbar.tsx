@@ -4,17 +4,34 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const FORMAT_LABELS: Record<string, string> = {
-  single_image: "Single image",
+  single_image: "Single Image",
   video: "Video",
-  event: "Event",
   carousel: "Carousel",
   document: "Document",
+  event: "Event",
+  conversation: "Conversation",
   text: "Text",
-  thought_leader_image: "Thought leader (image)",
-  thought_leader_video: "Thought leader (video)",
-  thought_leader_text: "Thought leader (text)",
+  spotlight: "Spotlight",
+  thought_leader_image: "Thought Leader (image)",
+  thought_leader_video: "Thought Leader (video)",
+  thought_leader_text: "Thought Leader (text)",
   other: "Other",
 };
+
+const FORMAT_ORDER = [
+  "single_image",
+  "video",
+  "carousel",
+  "document",
+  "event",
+  "conversation",
+  "text",
+  "spotlight",
+  "thought_leader_image",
+  "thought_leader_video",
+  "thought_leader_text",
+  "other",
+];
 
 export function ExploreToolbar({
   sort,
@@ -62,11 +79,16 @@ export function ExploreToolbar({
           className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         >
           <option value="">All</option>
-          {formatCounts.map(({ format, count }) => (
-            <option key={format} value={format}>
-              {FORMAT_LABELS[format] ?? format} ({count})
-            </option>
-          ))}
+          {[...formatCounts]
+            .sort(
+              (a, b) =>
+                FORMAT_ORDER.indexOf(a.format) - FORMAT_ORDER.indexOf(b.format)
+            )
+            .map(({ format, count }) => (
+              <option key={format} value={format}>
+                {FORMAT_LABELS[format] ?? format} ({count})
+              </option>
+            ))}
         </select>
       </label>
       {(sort !== "date" || formatFilter) && (

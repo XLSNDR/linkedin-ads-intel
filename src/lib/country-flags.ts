@@ -48,7 +48,7 @@ export function getCountryFlag(countryName: string): string {
   return COUNTRY_TO_FLAG[countryName] ?? "🌐";
 }
 
-export type CountryImpression = { country: string; percentage: string };
+export type CountryImpression = { country: string; percentage?: string; impressions?: string };
 
 export function parseCountryData(
   countryData: unknown

@@ -6,8 +6,10 @@
  *    NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
  *    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
  * 3. Get a company ID from https://www.linkedin.com/ad-library/ (authorCompanyId in URL).
- * 4. Replace TEST_COMPANY_ID below, then run:
- *    npx tsx scripts/test-scraper.ts
+ * 4. Run:
+ *    npx tsx scripts/test-scraper.ts           # Scrape ELIX (3 ads)
+ *    npx tsx scripts/test-scraper.ts --diverse # Scrape diverse advertiser (80 ads, 20 with detail)
+ *    Set DIVERSE_COMPANY_ID and DIVERSE_COMPANY_NAME for the --diverse run.
  */
 
 import "dotenv/config";
@@ -20,6 +22,10 @@ import { detectAdFormat } from "../src/lib/scraper/format-detector";
 const TEST_COMPANY_ID = "69255797"; // ELIX – from LinkedIn Ads Library
 const TEST_COMPANY_NAME = "ELIX";
 
+// Use this for an advertiser with diverse formats (8 formats + thought leader). Replace with company ID from LinkedIn Ads Library.
+const DIVERSE_COMPANY_ID = "69255797"; // TODO: set to your diverse advertiser's company ID
+const DIVERSE_COMPANY_NAME = "ELIX"; // TODO: set company name
+
 async function main() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
@@ -29,11 +35,15 @@ async function main() {
   const adapter = new PrismaPg({ connectionString });
   const prisma = new PrismaClient({ adapter });
 
-  console.log("Scraping company:", TEST_COMPANY_ID, TEST_COMPANY_NAME);
-  const { ads, title } = await scrapeAdvertiser(TEST_COMPANY_ID, {
-    limit: 3, // First 3 ELIX ads: Video, Event, Single Image
-    detailLimit: 3, // Visit each detail page for full copy, runtime, impressions, targeting
-    screenshotPath: "scraper-debug-screenshot.png",
+  const useDiverse = process.argv.includes("--diverse");
+  const companyId = useDiverse ? DIVERSE_COMPANY_ID : TEST_COMPANY_ID;
+  const companyName = useDiverse ? DIVERSE_COMPANY_NAME : TEST_COMPANY_NAME;
+
+  console.log("Scraping company:", companyId, companyName, useDiverse ? "(diverse formats)" : "");
+  const { ads, title } = await scrapeAdvertiser(companyId, {
+    limit: useDiverse ? 80 : 3,
+    detailLimit: useDiverse ? 20 : 3,
+    screenshotPath: useDiverse ? undefined : "scraper-debug-screenshot.png",
   });
 
   console.log("Page title:", title);
@@ -56,8 +66,8 @@ async function main() {
 
   const { saved, advertiserId } = await saveAdvertiserAds(
     prisma,
-    TEST_COMPANY_ID,
-    TEST_COMPANY_NAME,
+    companyId,
+    companyName,
     ads
   );
 

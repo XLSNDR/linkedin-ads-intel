@@ -34,6 +34,12 @@ export default async function AdminLayout({
         >
           Stats
         </Link>
+        <Link
+          href="/admin/advertisers"
+          className="text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          Advertisers
+        </Link>
       </div>
       {children}
     </div>

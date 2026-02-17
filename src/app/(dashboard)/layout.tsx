@@ -28,7 +28,7 @@ export default async function DashboardLayout({
 
   return (
     <>
-      <Navigation />
+      <Navigation role={user.role} />
       {children}
     </>
   );

@@ -30,7 +30,8 @@ export function detectAdFormat(input: FormatDetectorInput): AdFormat {
     if (/carousel/i.test(format)) return "carousel";
     if (/document/i.test(format)) return "document";
     if (/event/i.test(format)) return "event";
-    if (/message/i.test(format)) return "conversation";
+    if (/message/i.test(format) || /conversation/i.test(format))
+      return "conversation";
     if (/text\s*ad/i.test(format)) return "thought_leader_text";
     if (/spotlight/i.test(format)) return "spotlight";
     return "other";
@@ -41,7 +42,8 @@ export function detectAdFormat(input: FormatDetectorInput): AdFormat {
   if (/carousel\s*ad/i.test(format)) return "carousel";
   if (/document\s*ad/i.test(format)) return "document";
   if (/event\s*ad/i.test(format)) return "event";
-  if (/message\s*ad/i.test(format)) return "conversation";
+  if (/message\s*ad/i.test(format) || /conversation\s*ad/i.test(format))
+    return "conversation";
   if (/text\s*ad/i.test(format)) return "text";
   if (/spotlight\s*ad/i.test(format)) return "spotlight";
 

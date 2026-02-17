@@ -6,7 +6,7 @@ const navLinks = [
   { href: "/advertisers", label: "Advertisers" },
 ] as const;
 
-export function Navigation() {
+export function Navigation({ role }: { role?: string }) {
   return (
     <nav className="flex items-center gap-6 border-b border-black/[.08] dark:border-white/[.145] px-6 py-3 font-[family-name:var(--font-geist-sans)]">
       {navLinks.map(({ href, label }) => (
@@ -18,6 +18,14 @@ export function Navigation() {
           {label}
         </Link>
       ))}
+      {role === "admin" && (
+        <Link
+          href="/admin/advertisers"
+          className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Admin
+        </Link>
+      )}
     </nav>
   );
 }

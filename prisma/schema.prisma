@@ -81,24 +81,28 @@ model Plan {
 model Advertiser {
   id                String   @id @default(cuid())
 
-  // LinkedIn data
-  companyId         String   @unique // LinkedIn company ID
-  companyName       String
-  companyLogoUrl    String?
-  companyUrl        String?
-  industry          String?
-  followerCount     Int?
+  // LinkedIn data (Apify uses linkedinCompanyId from advertiserUrl)
+  name              String
+  linkedinCompanyId String   @unique // e.g. "2027242"
+  linkedinUrl       String?  // e.g. "https://www.linkedin.com/company/2027242"
+  logoUrl           String?  // from Apify advertiserLogo field
+
+  // Status and scraping
+  status            String   @default("approved") // "pending" | "approved" | "rejected"
+  lastScrapedAt     DateTime?
+  totalAdsFound     Int      @default(0)
 
   // Relationships
   userAdvertisers   UserAdvertiser[]
   ads               Ad[]
+  scrapeRuns        ScrapeRun[]
 
   // Metadata
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  @@index([companyId])
-  @@index([companyName])
+  @@index([linkedinCompanyId])
+  @@index([name])
 }
 
 model UserAdvertiser {
@@ -129,68 +133,60 @@ model UserAdvertiser {
 }
 
 // ============================================================================
-// ADS
+// ADS (Apify schema)
 // ============================================================================
 
 model Ad {
-  id                    String   @id @default(cuid())
+  id                    String    @id @default(cuid())
 
   // LinkedIn identifiers
-  adId                  String   @unique // From LinkedIn Ads Library URL
-  adLibraryUrl          String   @unique
+  externalId            String    @unique // Apify "adId" — LinkedIn's ad ID
+  adLibraryUrl          String?
 
   // Advertiser
   advertiserId          String
   advertiser            Advertiser @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
 
-  // Classification
-  format                String   @default("other") // "single_image" | "video" | "document" | "carousel" | "thought_leader" | "other"
-  status                String   @default("active") // "active" | "stopped"
+  // Core content
+  format                String    // "SINGLE_IMAGE" | "CAROUSEL" | "VIDEO" | etc.
+  bodyText              String?   @db.Text // Apify "body" — ad copy
+  headline              String?
+  callToAction          String?   // First element of Apify "ctas" array
+  destinationUrl        String?   // Apify "clickUrl"
 
-  // Creative
-  introText             String   @db.Text
-  ctaText               String?
-  landingPageUrl        String?
-  landingDomain         String?
-  creativeMediaUrls     String[] // Array of Supabase Storage URLs
-  creativeHash          String   @default("")
-  creativeThumbnailUrl  String?
+  // Media — primary URL for quick access
+  mediaUrl              String?   // Primary image/video URL
+  mediaData             Json?     // Format-specific: slides, imageUrls, documentUrl, etc.
+
+  // Dates and performance
+  startDate             DateTime? // Apify "availability.start"
+  endDate               DateTime? // Apify "availability.end"
+  impressions           String?   // Raw string like "1k-5k"
 
   // Targeting
-  languages             String[] // ["en", "nl", "de"]
-  locations             String[] // ["United States", "United Kingdom"]
+  targetLanguage        String?
+  targetLocation        String?
 
-  // Performance (EU only)
-  hasImpressions        Boolean  @default(false)
-  impressionBucket      String?  // "<1k" | "1k-5k" | etc.
-  assumedImpressions    Int?     // Midpoint of bucket
+  // Metadata
+  paidBy                String?
+  impressionsPerCountry Json?     // Array of { country, impressions }
 
-  // Countries (JSON for flexibility)
-  countryData           Json?    // [{ country: "US", percentage: 40, estimatedImpressions: 40000 }]
-
-  // Dates
-  firstSeenDate         DateTime
-  lastSeenDate          DateTime
-  runtimeDays           Int      @default(0)
-
-  // Scraping
-  firstScrapedAt        DateTime @default(now())
-  lastScrapedAt         DateTime @updatedAt
+  // Timestamps (when we scraped)
+  firstSeenAt           DateTime  @default(now())
+  lastSeenAt            DateTime  @default(now())
 
   // Relationships
   snapshots             Snapshot[]
   collectionAds         CollectionAd[]
 
-  // Metadata
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  @@index([adId])
+  @@index([externalId])
   @@index([advertiserId])
-  @@index([status])
   @@index([format])
-  @@index([firstSeenDate])
-  @@index([assumedImpressions])
+  @@index([startDate])
+  @@index([endDate])
 }
 
 // ============================================================================
@@ -255,32 +251,28 @@ model CollectionAd {
 }
 
 // ============================================================================
-// SCRAPER JOBS (Audit log)
+// SCRAPE RUNS (Apify audit log)
 // ============================================================================
 
-model ScrapeJob {
-  id                String   @id @default(cuid())
+model ScrapeRun {
+  id              String    @id @default(cuid())
 
-  jobType           String   // "initial" | "scheduled" | "manual"
-  advertiserId      String
+  advertiserId    String
+  advertiser      Advertiser @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
 
-  // Status
-  status            String   // "pending" | "running" | "completed" | "failed"
+  apifyRunId      String?
+  apifyDatasetId  String?
 
-  // Results
-  adsFound          Int      @default(0)
-  adsNew            Int      @default(0)
-  adsUpdated        Int      @default(0)
-  errorMessage      String?  @db.Text
+  status          String    @default("pending") // "pending" | "running" | "completed" | "failed"
+  adsFound        Int       @default(0)
+  adsNew          Int       @default(0)
+  adsUpdated      Int       @default(0)
+  costUsd         Float?
+  errorMessage    String?   @db.Text
 
-  // Timing
-  startedAt         DateTime?
-  completedAt       DateTime?
-  durationMs        Int?
-
-  createdAt         DateTime @default(now())
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
 
   @@index([advertiserId])
   @@index([status])
-  @@index([createdAt])
 }

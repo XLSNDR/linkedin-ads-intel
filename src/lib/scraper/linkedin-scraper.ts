@@ -16,11 +16,16 @@ const SELECTORS = {
 } as const;
 
 // Map data-creative-type (from div.ad-preview) to format string for format-detector
+// Values from real LinkedIn Ads Library HTML (Simplicate, ELIX, etc.)
 const CREATIVE_TYPE_TO_FORMAT: Record<string, string> = {
   SPONSORED_STATUS_UPDATE: "Single Image Ad",
   SPONSORED_VIDEO: "Video Ad",
   SPONSORED_UPDATE_EVENT: "Event Ad",
-  // Add more as we see them: e.g. CAROUSEL → "Carousel Ad"
+  SPONSORED_UPDATE_CAROUSEL: "Carousel Ad",
+  SPONSORED_UPDATE_NATIVE_DOCUMENT: "Document Ad",
+  SPONSORED_MESSAGE: "Message Ad",
+  TEXT_AD: "Text Ad",
+  SPOTLIGHT_V2: "Spotlight Ad",
 };
 
 export type ScrapedAd = {
@@ -77,23 +82,41 @@ export async function scrapeAdvertiser(
       try {
         const companyName =
           (await card.locator(SELECTORS.companyName).first().textContent().catch(() => null))?.trim() ?? "";
+        // Ad copy: Single Image/Video/Document/Carousel use commentary__content; Conversation uses sponsored-message__content; Text uses div.font-semibold; Spotlight uses p.text-xs + h2
         const adCopy =
-          (await card.locator(SELECTORS.adCopy).first().textContent().catch(() => null))?.trim() ?? "";
-        // Headline: Single Image/Video use .sponsored-content-headline h2; Event ads use div.grow h2
+          (await card.locator(SELECTORS.adCopy).first().textContent().catch(() => null))?.trim() ??
+          (await card.locator("p.sponsored-message__content").first().textContent().catch(() => null))?.trim() ??
+          (await card.locator("div.font-semibold.text-sm").first().textContent().catch(() => null))?.trim() ??
+          "";
+        // Headline/CTA: Single Image/Video use .sponsored-content-headline h2; Event uses div.grow h2; Carousel uses span.text-xs.font-semibold (first card); Text uses div.font-semibold; Spotlight uses h2
         const headlineMain =
           (await card.locator(SELECTORS.headline).first().textContent().catch(() => null))?.trim() ?? "";
         const headlineEvent =
           (await card.locator("div.grow h2").first().textContent().catch(() => null))?.trim() ?? "";
-        const ctaText = headlineMain || headlineEvent;
+        const headlineCarousel =
+          (await card.locator("span.text-xs.font-semibold.text-color-text").first().textContent().catch(() => null))?.trim() ?? "";
+        const headlineSpotlight =
+          (await card.locator("h2.text-sm.font-semibold").first().textContent().catch(() => null))?.trim() ?? "";
+        const ctaText = headlineMain || headlineEvent || headlineCarousel || headlineSpotlight;
+        // Image: most use ad-preview__dynamic-dimensions-image; Text ad uses img[alt="Ad image"]; Document uses img in document preview
         const img = card.locator(SELECTORS.image).first();
-        const imageUrl =
-          (await img.getAttribute("src").catch(() => null)) ?? "";
+        let imageUrl = (await img.getAttribute("src").catch(() => null)) ?? "";
+        if (!imageUrl) {
+          imageUrl = (await card.locator('img[alt="Ad image"]').first().getAttribute("src").catch(() => null)) ?? "";
+        }
+        if (!imageUrl) {
+          imageUrl = (await card.locator("a[data-tracking-control-name='ad_library_ad_preview_native_document_image'] img").first().getAttribute("src").catch(() => null)) ?? "";
+        }
         // Format: prefer data-creative-type on div.ad-preview (e.g. SPONSORED_STATUS_UPDATE), else inner card aria-label
         const dataCreativeType =
           (await card.getAttribute("data-creative-type").catch(() => null)) ?? "";
         const innerCard = card.locator(SELECTORS.innerCard).first();
-        const ariaLabel =
+        let ariaLabel =
           (await innerCard.getAttribute("aria-label").catch(() => null)) ?? "";
+        if (!ariaLabel) {
+          ariaLabel =
+            (await card.locator("[aria-label]").first().getAttribute("aria-label").catch(() => null)) ?? "";
+        }
         const aboutTheAdFormat =
           CREATIVE_TYPE_TO_FORMAT[dataCreativeType] ??
           ariaLabel.split(",").map((s) => s.trim())[1] ??
