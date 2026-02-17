@@ -5,7 +5,6 @@
 import type { PrismaClient } from "@prisma/client";
 
 const MONTHLY_SPEND_LIMIT_USD = Number(process.env.APIFY_MONTHLY_SPEND_LIMIT ?? 50);
-const COST_PER_AD_USD = 0.004;
 
 /** Sum ScrapeRun costs for the current month */
 export async function getMonthlySpend(prisma: PrismaClient): Promise<number> {
