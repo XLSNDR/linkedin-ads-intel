@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { syncScrapeRun } from "@/lib/services/sync-scrape-run";
 
+export const dynamic = "force-dynamic";
+
 /** GET: poll scrape progress; fetches current dataset, saves to DB, returns status and counts */
 export async function GET(
   _req: Request,

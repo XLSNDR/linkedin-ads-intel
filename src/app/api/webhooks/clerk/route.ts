@@ -2,6 +2,8 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
   if (!WEBHOOK_SECRET) {

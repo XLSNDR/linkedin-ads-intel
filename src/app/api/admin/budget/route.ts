@@ -3,6 +3,8 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getMonthlySpend } from "@/lib/services/ad-storage";
 
+export const dynamic = "force-dynamic";
+
 const MONTHLY_LIMIT = Number(process.env.APIFY_MONTHLY_SPEND_LIMIT ?? 50);
 
 /** GET: current month Apify spend and limit */

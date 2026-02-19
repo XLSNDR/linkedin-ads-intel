@@ -2,6 +2,8 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Creates or updates your User row in the database from your Clerk account.
  * Use this when developing locally, since Clerk webhooks can't reach localhost.

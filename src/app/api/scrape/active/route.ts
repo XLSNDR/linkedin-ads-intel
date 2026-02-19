@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { syncScrapeRun } from "@/lib/services/sync-scrape-run";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET: whether any scrape is currently running (for Explore banner + auto-refresh).
  * When there are running runs, we sync from Apify before returning so ads appear

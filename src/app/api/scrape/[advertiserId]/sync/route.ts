@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getRunStatus, getDatasetItems } from "@/lib/apify/client";
 import { storeAds } from "@/lib/services/ad-storage";
 
+export const dynamic = "force-dynamic";
+
 /**
  * POST: Fetch ads from Apify and save to DB.
  * - If body.apifyRunId is provided: use that Apify run (e.g. one started in Apify Console).

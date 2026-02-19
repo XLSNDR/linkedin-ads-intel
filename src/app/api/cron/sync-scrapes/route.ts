@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { syncScrapeRun } from "@/lib/services/sync-scrape-run";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Cron: sync all running scrapes (fetch from Apify + save to DB).
  * Schedule: every minute (vercel.json). Requires Vercel Pro (Hobby is daily only).

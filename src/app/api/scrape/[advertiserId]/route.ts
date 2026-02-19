@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { startScrapeRun } from "@/lib/apify/client";
 import { checkMonthlyBudget } from "@/lib/services/ad-storage";
 
+export const dynamic = "force-dynamic";
+
 /** POST: trigger scrape for an advertiser */
 export async function POST(
   _req: Request,
