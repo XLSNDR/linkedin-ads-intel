@@ -313,8 +313,9 @@ export default async function ExplorePage({
           </p>
         ) : (
           <>
-          {/* LinkedIn-style: list capped at 1224px; each item max-width calc(33.33% - 16px) for ~400px cards */}
-          <ul className="explore-ads-list grid grid-cols-1 sm:grid-cols-3 gap-3 list-none p-0 m-0 mx-auto w-full">
+          {/* Wrapper caps content at 1224px so grid columns stay 400px (LinkedIn Ads Library ~400px per card) */}
+          <div className="w-full mx-auto" style={{ maxWidth: 1224 }}>
+          <ul className="explore-ads-list grid grid-cols-1 sm:grid-cols-3 gap-3 list-none p-0 m-0 w-full">
             {paginatedAds.map((ad) => {
               const advertiser = ad.advertiser;
               if (!advertiser) return null;
@@ -485,6 +486,7 @@ export default async function ExplorePage({
             );
             })}
           </ul>
+          </div>
 
           {totalCount > PAGE_SIZE && (() => {
             function exploreUrl(p: SearchParams, page: number): string {

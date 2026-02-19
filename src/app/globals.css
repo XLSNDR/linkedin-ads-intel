@@ -8,19 +8,7 @@
   }
 }
 
-/* Explore ads: fixed 400px columns so cards never exceed 400px; list shrinks to content width */
-.explore-ads-list {
-  max-width: 100% !important;
-}
-
-@media (min-width: 640px) {
-  .explore-ads-list {
-    grid-template-columns: repeat(3, minmax(0, 400px));
-    width: max-content !important;
-    max-width: 100%;
-  }
-}
-
+/* Explore ads: wrapper in page caps at 1224px → 3 columns ~400px each; allow grid items to shrink */
 .explore-ad-card-item {
   min-width: 0;
 }
