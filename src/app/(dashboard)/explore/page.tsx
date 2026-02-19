@@ -3,6 +3,7 @@ import { Prisma, prisma } from "@/lib/prisma";
 import { ExploreFilters } from "./ExploreFilters";
 import { ExploreSearchSort } from "./ExploreSearchSort";
 import { AdCardSaveButton } from "./AdCardSaveButton";
+import { AdCardBodyText } from "./AdCardBodyText";
 import { ExploreScrapingBanner } from "./ExploreScrapingBanner";
 import { getCountryFlag, parseCountryData } from "@/lib/country-flags";
 
@@ -350,11 +351,9 @@ export default async function ExplorePage({
                     </div>
                   </div>
 
-                  {/* 2. Intro text (above the creative) */}
+                  {/* 2. Intro text (above the creative) – truncate with see more */}
                   <div className="px-3 py-1.5">
-                    <p className="text-sm text-foreground break-words leading-[18px] whitespace-pre-wrap line-clamp-4">
-                      {ad.bodyText || ad.headline || "—"}
-                    </p>
+                    <AdCardBodyText text={ad.bodyText || ad.headline || "—"} />
                   </div>
 
                   {/* 3. Main creative (image / video thumbnail) */}
