@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { ExploreToolbar } from "./ExploreToolbar";
+import { Prisma, prisma } from "@/lib/prisma";
+import { ExploreFilters } from "./ExploreFilters";
+import { ExploreSearchSort } from "./ExploreSearchSort";
 import { AdCardSaveButton } from "./AdCardSaveButton";
+import { ExploreScrapingBanner } from "./ExploreScrapingBanner";
 import { getCountryFlag, parseCountryData } from "@/lib/country-flags";
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -65,14 +67,81 @@ function impressionsToNumber(impressions: string | null): number {
   return 0;
 }
 
+type SearchParams = {
+  sort?: string;
+  advertisers?: string;
+  formats?: string;
+  status?: string;
+  minImpressions?: string;
+  countries?: string;
+  languages?: string;
+  startDate?: string;
+  endDate?: string;
+  ctas?: string;
+  search?: string;
+  searchMode?: string;
+};
+
 export default async function ExplorePage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; format?: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
   const sort = params.sort ?? "date";
-  const formatFilter = params.format ?? "";
+  const advertiserIds = params.advertisers?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  const formats = params.formats?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  const status = params.status ?? "";
+  const minImpressions = params.minImpressions?.trim() ? parseInt(params.minImpressions, 10) : null;
+  const countries = params.countries?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  const languages = params.languages?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  const startDateParam = params.startDate?.trim();
+  const endDateParam = params.endDate?.trim();
+  const ctas = params.ctas?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  const search = params.search?.trim() ?? "";
+  const searchMode = params.searchMode ?? "keyword";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const whereConditions: Prisma.AdWhereInput[] = [];
+
+  if (advertiserIds.length) whereConditions.push({ advertiserId: { in: advertiserIds } });
+  if (formats.length) whereConditions.push({ format: { in: formats } });
+  if (status === "active") whereConditions.push({ OR: [{ endDate: { gte: today } }, { endDate: null }] });
+  if (status === "stopped") whereConditions.push({ endDate: { not: null, lt: today } });
+  if (minImpressions != null && !Number.isNaN(minImpressions)) whereConditions.push({ impressionsEstimate: { gte: minImpressions } });
+  if (countries.length) {
+    whereConditions.push({
+      OR: countries.map((c) => ({
+        countryImpressionsEstimate: { path: [c], not: Prisma.JsonNull },
+      })),
+    });
+  }
+  if (languages.length) whereConditions.push({ targetLanguage: { in: languages } });
+  if (startDateParam && endDateParam) {
+    const rangeStart = new Date(startDateParam);
+    const rangeEnd = new Date(endDateParam);
+    whereConditions.push({
+      startDate: { lte: rangeEnd },
+      OR: [{ endDate: { gte: rangeStart } }, { endDate: null }],
+    });
+  }
+  if (ctas.length) whereConditions.push({ callToAction: { in: ctas } });
+  if (search) {
+    if (searchMode === "url") {
+      whereConditions.push({ destinationUrl: { contains: search, mode: "insensitive" } });
+    } else {
+      whereConditions.push({
+        OR: [
+          { bodyText: { contains: search, mode: "insensitive" } },
+          { headline: { contains: search, mode: "insensitive" } },
+        ],
+      });
+    }
+  }
+
+  const where: Prisma.AdWhereInput = whereConditions.length ? { AND: whereConditions } : {};
 
   const orderBy =
     sort === "runtime"
@@ -80,18 +149,23 @@ export default async function ExplorePage({
       : { lastSeenAt: "desc" as const };
 
   let ads = await prisma.ad.findMany({
-    where: formatFilter ? { format: formatFilter } : undefined,
+    where,
     include: { advertiser: true },
     orderBy,
-    take: 50,
+    take: 500,
   });
 
   if (sort === "impressions") {
-    ads = [...ads].sort(
-      (a, b) =>
-        impressionsToNumber(b.impressions) -
-        impressionsToNumber(a.impressions)
-    );
+    const countryForSort = countries[0] ?? null;
+    ads = [...ads].sort((a, b) => {
+      const estA = countryForSort
+        ? (a.countryImpressionsEstimate as Record<string, number> | null)?.[countryForSort] ?? 0
+        : (a.impressionsEstimate ?? impressionsToNumber(a.impressions));
+      const estB = countryForSort
+        ? (b.countryImpressionsEstimate as Record<string, number> | null)?.[countryForSort] ?? 0
+        : (b.impressionsEstimate ?? impressionsToNumber(b.impressions));
+      return estB - estA;
+    });
   }
   if (sort === "runtime") {
     ads = [...ads].sort((a, b) => {
@@ -105,38 +179,56 @@ export default async function ExplorePage({
     });
   }
 
-  // Count by format (in-memory to avoid groupBy adapter issues)
-  const allFormats = await prisma.ad.findMany({
-    select: { format: true },
-  });
+  ads = ads.slice(0, 50);
+
+  // Filter options for sidebar
+  const [advertisersWithAds, allFormats, adsForOptions] = await Promise.all([
+    prisma.advertiser.findMany({
+      where: { ads: { some: {} } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.ad.findMany({ select: { format: true } }),
+    prisma.ad.findMany({
+      select: { targetLanguage: true, callToAction: true, countryImpressionsEstimate: true },
+    }),
+  ]);
   const formatCountMap = allFormats.reduce<Record<string, number>>((acc, { format }) => {
     acc[format] = (acc[format] ?? 0) + 1;
     return acc;
   }, {});
-  const formatCounts = Object.entries(formatCountMap).map(([format, count]) => ({
-    format,
-    count,
-  }));
+  const formatCounts = Object.entries(formatCountMap).map(([format, count]) => ({ format, count }));
+  const countrySet = new Set<string>();
+  adsForOptions.forEach((ad) => {
+    const obj = ad.countryImpressionsEstimate as Record<string, unknown> | null;
+    if (obj && typeof obj === "object") Object.keys(obj).forEach((k) => countrySet.add(k));
+  });
+  const countriesList = Array.from(countrySet).sort();
+  const languagesList = [...new Set(adsForOptions.map((a) => a.targetLanguage).filter(Boolean))] as string[];
+  const ctasList = [...new Set(adsForOptions.map((a) => a.callToAction).filter(Boolean))] as string[];
+
+  const filterOptions = {
+    advertisers: advertisersWithAds,
+    formats: formatCounts,
+    formatLabels: FORMAT_LABELS,
+    countries: countriesList,
+    languages: languagesList,
+    ctas: ctasList,
+  };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] font-[family-name:var(--font-geist-sans)]">
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold mb-1">Explore Ads</h1>
+    <div className="min-h-[calc(100vh-4rem)] font-[family-name:var(--font-geist-sans)] flex">
+      <ExploreFilters options={filterOptions} />
+      <main className="flex-1 min-w-0 px-6 py-8">
+        <ExploreScrapingBanner />
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h1 className="text-2xl font-semibold">Explore Ads</h1>
             <p className="text-muted-foreground text-sm">
               {ads.length} {ads.length === 1 ? "ad" : "ads"}
-              {formatFilter && ` · ${formatFilter.replace(/_/g, " ")}`}
             </p>
           </div>
-          <ExploreToolbar
-            sort={sort}
-            formatFilter={formatFilter}
-            formatCounts={formatCounts.map((f) => ({
-              format: f.format,
-              count: f.count,
-            }))}
-          />
+          <ExploreSearchSort sort={sort} hasCountryFilter={countries.length > 0} />
         </div>
 
         {ads.length === 0 ? (
