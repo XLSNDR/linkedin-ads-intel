@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useCallback, useState, useEffect, useRef } from "react";
 
 function toYYYYMMDD(d: Date): string {
@@ -62,6 +62,7 @@ export function ExploreSearchSort({
   hasCountryFilter: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const search = searchParams.get("search") ?? "";
   const searchMode = searchParams.get("searchMode") ?? "keyword";
@@ -141,8 +142,12 @@ export function ExploreSearchSort({
     }
     setDateOpen(false);
     const q = next.toString();
-    router.push(q ? `/explore?${q}` : "/explore");
-  }, [datePreset, customStart, customEnd, router, searchParams]);
+    const target = q ? `/explore?${q}` : "/explore";
+    const current = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+    if (target !== current) {
+      router.push(target);
+    }
+  }, [datePreset, customStart, customEnd, router, searchParams, pathname]);
 
   const placeholder =
     searchMode === "url"
