@@ -10,6 +10,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks/clerk",
   "/api/webhooks/(.*)",
   "/api/test-db",
+  "/api/cron/sync-scrapes", // Vercel cron (validated by CRON_SECRET in the route)
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

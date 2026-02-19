@@ -2,7 +2,7 @@
  * Ad storage service: persist Apify ads to database
  */
 
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 
 const MONTHLY_SPEND_LIMIT_USD = Number(process.env.APIFY_MONTHLY_SPEND_LIMIT ?? 50);
 
@@ -54,10 +54,16 @@ export async function storeAds(
 
   for (const raw of ads) {
     const transformed = transformApifyAd(raw, advertiserId);
+    if (!transformed) continue; // skip items without valid externalId
+    const countryEst = transformed.countryImpressionsEstimate;
     const data = {
       ...transformed,
       mediaData: transformed.mediaData ?? undefined,
       impressionsPerCountry: transformed.impressionsPerCountry ?? undefined,
+      countryImpressionsEstimate:
+        countryEst && Object.keys(countryEst).length > 0
+          ? (countryEst as object)
+          : Prisma.JsonNull,
     };
 
     const existing = await prisma.ad.findUnique({

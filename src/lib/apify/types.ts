@@ -3,9 +3,10 @@
  * See: https://apify.com/silva95gustavo/linkedin-ad-library-scraper
  */
 
-/** Raw ad item from Apify dataset */
+/** Raw ad item from Apify dataset (actor may use id or adId) */
 export interface ApifyAd {
-  adId: string;
+  adId?: string;
+  id?: string;
   adLibraryUrl?: string;
   advertiserName: string;
   advertiserUrl: string;

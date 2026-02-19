@@ -22,21 +22,43 @@ function authParams(): string {
   return `token=${getToken()}`;
 }
 
+export interface StartScrapeConfig {
+  linkedinCompanyId: string;
+  /** Optional: one or more fully-qualified LinkedIn Ads Library URLs to scrape instead of the default company search URL. */
+  startUrls?: string[];
+  /** Optional: max number of ads Apify should return. */
+  resultsLimit?: number | null;
+}
+
 export async function startScrapeRun(
-  linkedinCompanyId: string
-): Promise<{ runId: string }> {
+  config: StartScrapeConfig
+): Promise<{ runId: string; datasetId: string | null }> {
   const url = `${BASE_URL}/acts/${ACTOR_ID}/runs?${authParams()}`;
+
+  const hasCustomUrls = config.startUrls && config.startUrls.length > 0;
+
+  const input: Record<string, unknown> = {
+    skipDetails: false,
+  };
+
+  if (hasCustomUrls) {
+    input.startUrls = config.startUrls!.map((u) => ({ url: u }));
+  } else {
+    input.startUrls = [
+      {
+        url: `https://www.linkedin.com/ad-library/search?companyIds=${config.linkedinCompanyId}`,
+      },
+    ];
+  }
+
+  if (config.resultsLimit != null && !Number.isNaN(config.resultsLimit)) {
+    input.resultsLimit = config.resultsLimit;
+  }
+
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      startUrls: [
-        {
-          url: `https://www.linkedin.com/ad-library/search?companyIds=${linkedinCompanyId}`,
-        },
-      ],
-      skipDetails: false,
-    }),
+    body: JSON.stringify(input),
   });
 
   if (!response.ok) {
@@ -46,12 +68,39 @@ export async function startScrapeRun(
     );
   }
 
-  const json = (await response.json()) as { data?: { id?: string } };
+  const json = (await response.json()) as {
+    data?: { id?: string; defaultDatasetId?: string };
+  };
   const runId = json.data?.id;
+  const datasetId = json.data?.defaultDatasetId;
   if (!runId) {
     throw new Error("Apify startScrapeRun: no run id in response");
   }
-  return { runId };
+  return { runId, datasetId: datasetId ?? null };
+}
+
+/** Get current run status and datasetId (if not yet known). */
+export async function getRunStatus(
+  runId: string
+): Promise<{
+  status: string;
+  datasetId: string | null;
+}> {
+  const url = `${BASE_URL}/actor-runs/${runId}?${authParams()}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `Apify getRunStatus failed (${response.status}): ${text.slice(0, 500)}`
+    );
+  }
+  const json = (await response.json()) as {
+    data?: { status?: string; defaultDatasetId?: string };
+  };
+  return {
+    status: json.data?.status ?? "UNKNOWN",
+    datasetId: json.data?.defaultDatasetId ?? null,
+  };
 }
 
 export async function waitForRun(
@@ -90,6 +139,7 @@ export async function waitForRun(
   throw new Error(`Apify run ${runId} timed out after ${POLL_MAX_ATTEMPTS} attempts`);
 }
 
+/** Fetch current dataset items (can be called while run is still in progress). */
 export async function getDatasetItems(
   datasetId: string
 ): Promise<ApifyAd[]> {
@@ -110,7 +160,7 @@ export async function getDatasetItems(
   return items as ApifyAd[];
 }
 
-/** Convenience: start run, wait for completion, fetch results */
+/** Convenience: start run, wait for completion, fetch results (used when not using batch mode). */
 export async function scrapeAdvertiser(
   linkedinCompanyId: string
 ): Promise<{
@@ -118,8 +168,14 @@ export async function scrapeAdvertiser(
   runId: string;
   datasetId: string;
 }> {
-  const { runId } = await startScrapeRun(linkedinCompanyId);
+  const { runId, datasetId: startDatasetId } = await startScrapeRun({
+    linkedinCompanyId,
+  });
   const { datasetId } = await waitForRun(runId);
-  const ads = await getDatasetItems(datasetId);
-  return { ads, runId, datasetId };
+  const resolvedDatasetId = datasetId ?? startDatasetId;
+  if (!resolvedDatasetId) {
+    throw new Error("Apify run has no dataset id");
+  }
+  const ads = await getDatasetItems(resolvedDatasetId);
+  return { ads, runId, datasetId: resolvedDatasetId };
 }

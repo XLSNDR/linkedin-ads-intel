@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -21,6 +22,8 @@ export async function GET() {
       status: true,
       lastScrapedAt: true,
       totalAdsFound: true,
+      startUrls: true,
+      resultsLimit: true,
     },
   });
 
@@ -40,7 +43,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: { name?: string; linkedinCompanyId?: string };
+  let body: {
+    name?: string;
+    linkedinCompanyId?: string;
+    startUrls?: string[];
+    resultsLimit?: number | null;
+  };
   try {
     body = await req.json();
   } catch {
@@ -52,6 +60,14 @@ export async function POST(req: Request) {
 
   const name = body.name?.trim();
   const linkedinCompanyId = body.linkedinCompanyId?.trim();
+  const startUrls =
+    body.startUrls
+      ?.map((u) => u.trim())
+      .filter((u) => u.length > 0) ?? null;
+  const resultsLimit =
+    typeof body.resultsLimit === "number" && !Number.isNaN(body.resultsLimit)
+      ? Math.max(1, Math.floor(body.resultsLimit))
+      : null;
 
   if (!name || !linkedinCompanyId) {
     return NextResponse.json(
@@ -69,8 +85,15 @@ export async function POST(req: Request) {
         name,
         linkedinCompanyId,
         linkedinUrl,
+        startUrls: startUrls ? (startUrls as unknown as object) : undefined,
+        resultsLimit,
       },
-      update: { name, linkedinUrl },
+      update: {
+        name,
+        linkedinUrl,
+        startUrls: startUrls ? (startUrls as unknown as object) : Prisma.JsonNull,
+        resultsLimit,
+      },
     });
 
     return NextResponse.json({

@@ -4,6 +4,10 @@
  */
 
 import type { ApifyAd } from "./types";
+import {
+  parseImpressionsRangeToMidpoint,
+  computeCountryImpressionsEstimate,
+} from "@/lib/impressions";
 
 /** Prisma Ad create/update shape (for upsert) */
 export interface TransformedAd {
@@ -20,6 +24,8 @@ export interface TransformedAd {
   startDate: Date | null;
   endDate: Date | null;
   impressions: string | null;
+  impressionsEstimate: number | null;
+  countryImpressionsEstimate: Record<string, number> | null;
   targetLanguage: string | null;
   targetLocation: string | null;
   paidBy: string | null;
@@ -27,12 +33,21 @@ export interface TransformedAd {
   lastSeenAt: Date;
 }
 
-export function transformApifyAd(raw: ApifyAd, advertiserId: string): TransformedAd {
+/** Resolve external id (Apify actor may use id or adId) */
+function getExternalId(raw: ApifyAd): string | null {
+  const id = raw.adId ?? raw.id;
+  if (id == null || typeof id !== "string" || id.trim() === "") return null;
+  return id.trim();
+}
+
+export function transformApifyAd(raw: ApifyAd, advertiserId: string): TransformedAd | null {
+  const externalId = getExternalId(raw);
+  if (!externalId) return null;
   return {
-    externalId: raw.adId,
+    externalId,
     advertiserId,
     adLibraryUrl: raw.adLibraryUrl ?? null,
-    format: raw.format,
+    format: raw.format ?? "SINGLE_IMAGE",
     bodyText: raw.body ?? null,
     headline: raw.headline ?? null,
     callToAction: raw.ctas?.[0] ?? null,
@@ -42,6 +57,18 @@ export function transformApifyAd(raw: ApifyAd, advertiserId: string): Transforme
     startDate: raw.availability?.start ? new Date(raw.availability.start) : null,
     endDate: raw.availability?.end ? new Date(raw.availability.end) : null,
     impressions: normalizeImpressions(raw.impressions ?? null),
+    impressionsEstimate: (() => {
+      const normalized = normalizeImpressions(raw.impressions ?? null);
+      const n = parseImpressionsRangeToMidpoint(normalized ?? "");
+      return n > 0 ? n : null;
+    })(),
+    countryImpressionsEstimate: (() => {
+      const normalized = normalizeImpressions(raw.impressions ?? null);
+      const total = parseImpressionsRangeToMidpoint(normalized ?? "");
+      const arr = raw.impressionsPerCountry as Array<{ country: string; impressions: string }> | undefined;
+      const rec = computeCountryImpressionsEstimate(total, arr ?? null);
+      return Object.keys(rec).length > 0 ? rec : null;
+    })(),
     targetLanguage: raw.targeting?.language ?? null,
     targetLocation: raw.targeting?.location ?? null,
     paidBy: raw.paidBy ?? null,

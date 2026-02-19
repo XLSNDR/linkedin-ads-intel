@@ -91,6 +91,8 @@ model Advertiser {
   status            String   @default("approved") // "pending" | "approved" | "rejected"
   lastScrapedAt     DateTime?
   totalAdsFound     Int      @default(0)
+  startUrls         Json?    // Optional: override default company search with one or more LinkedIn Ads Library URLs
+  resultsLimit      Int?     // Optional: max number of ads to scrape per run (Apify results limit)
 
   // Relationships
   userAdvertisers   UserAdvertiser[]
@@ -161,7 +163,9 @@ model Ad {
   // Dates and performance
   startDate             DateTime? // Apify "availability.start"
   endDate               DateTime? // Apify "availability.end"
-  impressions           String?   // Raw string like "1k-5k"
+  impressions                 String?   // Raw string like "1k-5k"
+  impressionsEstimate         Int?      // Midpoint of range for sorting (e.g. 15000 from "10k-20k")
+  countryImpressionsEstimate  Json?     // Per-country estimated impressions e.g. { "Belgium": 1500, "Netherlands": 13500 } for filter + sort by country
 
   // Targeting
   targetLanguage        String?
@@ -169,7 +173,7 @@ model Ad {
 
   // Metadata
   paidBy                String?
-  impressionsPerCountry Json?     // Array of { country, impressions }
+  impressionsPerCountry Json?     // Array of { country, impressions } (raw from Apify)
 
   // Timestamps (when we scraped)
   firstSeenAt           DateTime  @default(now())
