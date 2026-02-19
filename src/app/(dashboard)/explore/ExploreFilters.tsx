@@ -295,6 +295,210 @@ function CountryFilter({
   );
 }
 
+function LanguageFilter({
+  languages: languageOptions,
+  selected,
+  onSelectionChange,
+}: {
+  languages: string[];
+  selected: string[];
+  onSelectionChange: (languages: string[]) => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = languageOptions.filter(
+    (lang) => !selected.includes(lang) && lang.toLowerCase().includes(q)
+  );
+
+  const add = (lang: string) => {
+    onSelectionChange([...selected, lang]);
+    setSearchQuery("");
+    setDropdownOpen(false);
+  };
+  const remove = (lang: string) => {
+    onSelectionChange(selected.filter((x) => x !== lang));
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="relative">
+        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+        </span>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => setDropdownOpen(true)}
+          placeholder="Search for language..."
+          className="w-full rounded-md border border-input bg-background py-2 pl-8 pr-3 text-sm"
+          aria-label="Search for language"
+        />
+      </div>
+      {dropdownOpen && (
+        <ul
+          className="absolute z-10 mt-1 w-full rounded-md border border-border bg-popover shadow-md max-h-56 overflow-auto"
+          role="listbox"
+        >
+          {filtered.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-muted-foreground">No matches</li>
+          ) : (
+            filtered.map((lang) => (
+              <li key={lang} role="option" aria-selected="false">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/80 focus:bg-muted/80"
+                  onClick={() => add(lang)}
+                >
+                  <span className="truncate">{lang}</span>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+      {selected.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selected.map((lang) => (
+            <span
+              key={lang}
+              className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium"
+            >
+              <span className="truncate max-w-[120px]">{lang}</span>
+              <button
+                type="button"
+                onClick={() => remove(lang)}
+                className="ml-0.5 -mr-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground"
+                aria-label={`Remove ${lang}`}
+              >
+                <span aria-hidden>×</span>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CtaFilter({
+  ctas: ctaOptions,
+  selected,
+  onSelectionChange,
+}: {
+  ctas: string[];
+  selected: string[];
+  onSelectionChange: (ctas: string[]) => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = ctaOptions.filter(
+    (cta) => !selected.includes(cta) && cta.toLowerCase().includes(q)
+  );
+
+  const add = (cta: string) => {
+    onSelectionChange([...selected, cta]);
+    setSearchQuery("");
+    setDropdownOpen(false);
+  };
+  const remove = (cta: string) => {
+    onSelectionChange(selected.filter((x) => x !== cta));
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="relative">
+        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+        </span>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => setDropdownOpen(true)}
+          placeholder="Search for CTA..."
+          className="w-full rounded-md border border-input bg-background py-2 pl-8 pr-3 text-sm"
+          aria-label="Search for CTA"
+        />
+      </div>
+      {dropdownOpen && (
+        <ul
+          className="absolute z-10 mt-1 w-full rounded-md border border-border bg-popover shadow-md max-h-56 overflow-auto"
+          role="listbox"
+        >
+          {filtered.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-muted-foreground">No matches</li>
+          ) : (
+            filtered.map((cta) => (
+              <li key={cta} role="option" aria-selected="false">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/80 focus:bg-muted/80"
+                  onClick={() => add(cta)}
+                >
+                  <span className="truncate">{cta}</span>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+      {selected.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selected.map((cta) => (
+            <span
+              key={cta}
+              className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium"
+            >
+              <span className="truncate max-w-[120px]">{cta}</span>
+              <button
+                type="button"
+                onClick={() => remove(cta)}
+                className="ml-0.5 -mr-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground"
+                aria-label={`Remove ${cta}`}
+              >
+                <span aria-hidden>×</span>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function getParam(params: URLSearchParams, key: string): string[] {
   const v = params.get(key);
   if (!v?.trim()) return [];
@@ -509,56 +713,32 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         />
       </FilterSection>
 
-      {/* Language (multiselect) */}
+      {/* Language: search + dropdown + pills */}
       <FilterSection
         id="language"
         title="Language"
         open={isSectionOpen("language")}
         onToggle={() => toggleSection("language")}
       >
-        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-          {safeOptions.languages.map((lang) => (
-            <button
-              key={lang}
-              type="button"
-              onClick={() => toggleMulti("languages", languages, lang)}
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                languages.includes(lang) ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"
-              }`}
-            >
-              {lang}
-            </button>
-          ))}
-          {safeOptions.languages.length === 0 && (
-            <span className="text-xs text-muted-foreground">None</span>
-          )}
-        </div>
+        <LanguageFilter
+          languages={safeOptions.languages}
+          selected={languages}
+          onSelectionChange={(ids) => update({ languages: ids })}
+        />
       </FilterSection>
 
-      {/* CTA (multiselect) */}
+      {/* CTA: search + dropdown + pills */}
       <FilterSection
         id="cta"
         title="CTA"
         open={isSectionOpen("cta")}
         onToggle={() => toggleSection("cta")}
       >
-        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-          {safeOptions.ctas.map((cta) => (
-            <button
-              key={cta}
-              type="button"
-              onClick={() => toggleMulti("ctas", ctas, cta)}
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                ctas.includes(cta) ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"
-              }`}
-            >
-              {cta}
-            </button>
-          ))}
-          {safeOptions.ctas.length === 0 && (
-            <span className="text-xs text-muted-foreground">None</span>
-          )}
-        </div>
+        <CtaFilter
+          ctas={safeOptions.ctas}
+          selected={ctas}
+          onSelectionChange={(ids) => update({ ctas: ids })}
+        />
       </FilterSection>
 
       {/* Promoted by (placeholder – no backend yet, keep at very bottom) */}
