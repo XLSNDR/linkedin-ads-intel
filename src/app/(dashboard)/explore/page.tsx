@@ -374,16 +374,30 @@ export default async function ExplorePage({
                           />
                         </div>
                       )}
-
-                      {/* 4. Headline underneath the creative */}
-                      {ad.callToAction && (
-                        <div className="border-t border-border bg-muted/30 px-3 py-2">
-                          <h2 className="text-sm font-semibold leading-[18px] text-foreground">
-                            {ad.callToAction}
-                          </h2>
-                        </div>
-                      )}
                     </a>
+
+                    {/* 4. Headline bar (headline left, CTA button right) – like LinkedIn Ads Library */}
+                    {(ad.headline || ad.callToAction) && (
+                      <div className="border-t border-border bg-muted/30 px-3 py-2 flex items-center justify-between gap-2 min-h-[44px]">
+                        {ad.headline ? (
+                          <span className="text-sm font-semibold leading-[18px] text-foreground truncate min-w-0 flex-1">
+                            {ad.headline}
+                          </span>
+                        ) : (
+                          <span className="flex-1 min-w-0" />
+                        )}
+                        {ad.callToAction && (
+                          <a
+                            href={ad.destinationUrl ?? ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 no-underline"
+                          >
+                            {ad.callToAction}
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* 5. Start, Last Seen, Runtime */}
