@@ -643,7 +643,9 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         onToggle={() => toggleSection("format")}
       >
         <div className="space-y-1.5 max-h-40 overflow-y-auto">
-          {safeOptions.formats.map((f) => (
+          {[...safeOptions.formats]
+            .sort((a, b) => b.count - a.count)
+            .map((f) => (
             <label key={f.format} className="flex items-center gap-2 text-sm cursor-pointer">
               <input
                 type="checkbox"
