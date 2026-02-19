@@ -213,7 +213,7 @@ export default async function ExplorePage({
   const paginatedAds = ads.slice(start, start + PAGE_SIZE);
 
   // Filter options for sidebar – derive from the ads we already fetched
-  const advertiserMap = new Map<string, { id: string; name: string | null; logoUrl: string | null }>();
+  const advertiserMap = new Map<string, { id: string; name: string; logoUrl: string | null }>();
   const formatCountMap: Record<string, number> = {};
   const countrySet = new Set<string>();
   const languageSet = new Set<string>();
@@ -225,7 +225,7 @@ export default async function ExplorePage({
       if (!advertiserMap.has(ad.advertiser.id)) {
         advertiserMap.set(ad.advertiser.id, {
           id: ad.advertiser.id,
-          name: ad.advertiser.name,
+          name: ad.advertiser.name ?? "—",
           logoUrl: ad.advertiser.logoUrl,
         });
       }
