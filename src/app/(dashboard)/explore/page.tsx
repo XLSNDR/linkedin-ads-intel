@@ -313,7 +313,8 @@ export default async function ExplorePage({
           </p>
         ) : (
           <>
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Grid constrained so each card is ~400px (LinkedIn Ads Library style); 1/2/3 cols */}
+          <ul className="grid gap-4 max-w-[400px] sm:max-w-[816px] lg:max-w-[1232px] sm:grid-cols-2 lg:grid-cols-3">
             {paginatedAds.map((ad) => {
               const advertiser = ad.advertiser;
               if (!advertiser) return null;
@@ -365,12 +366,12 @@ export default async function ExplorePage({
                       className="flex flex-col hover:no-underline focus:no-underline"
                     >
                       {ad.mediaUrl && (
-                        <div className="relative w-full min-h-[150px] bg-muted">
+                        <div className="relative w-full min-h-[120px] bg-muted">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={ad.mediaUrl}
                             alt=""
-                            className="w-full object-cover min-h-[150px]"
+                            className="w-full object-cover min-h-[120px]"
                           />
                         </div>
                       )}
