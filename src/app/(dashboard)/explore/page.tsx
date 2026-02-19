@@ -30,7 +30,8 @@ const FORMAT_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-function formatAdLaunchDate(date: Date): string {
+function formatAdLaunchDate(date: Date | null | undefined): string {
+  if (!date || typeof date.getTime !== "function" || Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short",
@@ -207,8 +208,9 @@ export default async function ExplorePage({
 
   const totalCount = ads.length;
   const maxPage = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const currentPage = Math.min(pageNum, maxPage);
-  const paginatedAds = ads.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const currentPage = Math.min(Math.max(1, pageNum), maxPage);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const paginatedAds = ads.slice(start, start + PAGE_SIZE);
 
   // Filter options for sidebar
   const [advertisersWithAds, allFormats, adsForOptions] = await Promise.all([

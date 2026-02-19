@@ -73,6 +73,7 @@ export function ExploreSearchSort({
   const [datePreset, setDatePreset] = useState("");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const [dateResetClicked, setDateResetClicked] = useState(false);
   const dateRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -85,6 +86,7 @@ export function ExploreSearchSort({
       setDatePreset(preset || "custom");
       setCustomStart(preset ? "" : startDateParam);
       setCustomEnd(preset ? "" : endDateParam);
+      setDateResetClicked(false);
     }
   }, [dateOpen, startDateParam, endDateParam]);
 
@@ -220,11 +222,16 @@ export function ExploreSearchSort({
             role="dialog"
             aria-label="Select date range"
             className="absolute right-0 top-full z-50 mt-1 w-80 rounded-lg border border-border bg-popover p-4 shadow-lg"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => setDateOpen(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDateOpen(false);
+                }}
                 className="text-muted-foreground hover:text-foreground"
                 aria-label="Close"
               >
@@ -309,14 +316,31 @@ export function ExploreSearchSort({
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setDateOpen(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (dateResetClicked) {
+                    const preset = matchPreset(startDateParam, endDateParam);
+                    setDatePreset(preset || "custom");
+                    setCustomStart(preset ? "" : startDateParam);
+                    setCustomEnd(preset ? "" : endDateParam);
+                    setDateResetClicked(false);
+                  } else {
+                    setDatePreset("");
+                    setCustomStart("");
+                    setCustomEnd("");
+                    setDateResetClicked(true);
+                  }
+                }}
                 className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted/80"
               >
-                Cancel
+                {dateResetClicked ? "Cancel" : "Reset"}
               </button>
               <button
                 type="button"
-                onClick={applyDate}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  applyDate();
+                }}
                 className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 Done
