@@ -204,8 +204,8 @@ export default async function ExplorePage({
     if (obj && typeof obj === "object") Object.keys(obj).forEach((k) => countrySet.add(k));
   });
   const countriesList = Array.from(countrySet).sort();
-  const languagesList = [...new Set(adsForOptions.map((a) => a.targetLanguage).filter(Boolean))] as string[];
-  const ctasList = [...new Set(adsForOptions.map((a) => a.callToAction).filter(Boolean))] as string[];
+  const languagesList = Array.from(new Set(adsForOptions.map((a) => a.targetLanguage).filter(Boolean))) as string[];
+  const ctasList = Array.from(new Set(adsForOptions.map((a) => a.callToAction).filter(Boolean))) as string[];
 
   const filterOptions = {
     advertisers: advertisersWithAds,
