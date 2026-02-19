@@ -38,14 +38,29 @@ function formatAdLaunchDate(date: Date): string {
   });
 }
 
-/** Ad is still active when its end date is today or in the future. */
-function isAdActive(endDate: Date | null): boolean {
-  if (!endDate) return false;
-  const end = new Date(endDate);
-  end.setHours(0, 0, 0, 0);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return end >= today;
+/** Format a number as Est. Impressions with dot thousands separator (e.g. 25000 → "25.000"). */
+function formatEstImpressions(n: number): string {
+  return n.toLocaleString("de-DE", { maximumFractionDigits: 0 });
+}
+
+/** Get estimated impressions for an ad: when countries are selected, sum their values from countryImpressionsEstimate; otherwise use impressionsEstimate. */
+function getAdEstImpressions(
+  ad: { countryImpressionsEstimate: unknown; impressionsEstimate: number | null; impressions: string | null },
+  selectedCountries: string[],
+  impressionsToNumberFn: (s: string | null) => number
+): number {
+  if (selectedCountries.length > 0) {
+    const byCountry = ad.countryImpressionsEstimate as Record<string, number> | null;
+    if (byCountry && typeof byCountry === "object") {
+      let sum = 0;
+      for (const c of selectedCountries) {
+        const v = byCountry[c];
+        if (typeof v === "number") sum += v;
+      }
+      if (sum > 0) return sum;
+    }
+  }
+  return ad.impressionsEstimate ?? impressionsToNumberFn(ad.impressions);
 }
 
 /** Parse impression string (e.g. "100k-150k", "1k-5k") to midpoint number for sorting. */
@@ -277,26 +292,6 @@ export default async function ExplorePage({
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span
-                        className={`flex items-center gap-1 text-xs font-medium ${
-                          isAdActive(ad.endDate)
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-muted-foreground"
-                        }`}
-                        title={isAdActive(ad.endDate) ? "Active (end date is today or later)" : "Stopped (end date has passed)"}
-                      >
-                        {isAdActive(ad.endDate) ? (
-                          <>
-                            <span className="inline-block h-2 w-2 rounded-full bg-green-500" aria-hidden />
-                            Active
-                          </>
-                        ) : (
-                          <>
-                            <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground" aria-hidden />
-                            Stopped
-                          </>
-                        )}
-                      </span>
                       <AdCardSaveButton adId={ad.id} />
                     </div>
                   </div>
@@ -338,43 +333,49 @@ export default async function ExplorePage({
                     </a>
                   </div>
 
-                  {/* 5. Launch date + runtime (AdsMom-style) */}
-                  <div className="border-t border-border px-3 py-2 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1.5" title="Launch date">
+                  {/* 5. Start, Last Seen, Runtime */}
+                  <div className="border-t border-border px-3 py-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5" title="Start date">
                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                         <line x1="16" y1="2" x2="16" y2="6" />
                         <line x1="8" y1="2" x2="8" y2="6" />
                         <line x1="3" y1="10" x2="21" y2="10" />
                       </svg>
-                      {ad.startDate ? formatAdLaunchDate(ad.startDate) : "—"}
+                      Start: {ad.startDate ? formatAdLaunchDate(ad.startDate) : "—"}
+                    </span>
+                    <span className="flex items-center gap-1.5" title="Last seen">
+                      Last Seen: {ad.lastSeenAt ? formatAdLaunchDate(ad.lastSeenAt) : "—"}
                     </span>
                     {(() => {
                       const runtimeDays = ad.startDate && ad.endDate
                         ? Math.round((ad.endDate.getTime() - ad.startDate.getTime()) / (24 * 60 * 60 * 1000))
                         : 0;
                       return runtimeDays > 0 ? (
-                      <span className="flex items-center gap-1.5" title="Runtime">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </svg>
-                        {runtimeDays} days
-                      </span>
+                        <span className="flex items-center gap-1.5" title="Runtime">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                          </svg>
+                          Runtime: {runtimeDays} Days
+                        </span>
                       ) : null;
                     })()}
                   </div>
 
-                  {/* 6. Ad detail metrics (impressions, etc.) */}
+                  {/* 6. Est. Impressions (based on selected countries) + location/language */}
                   <div className="border-t border-border px-3 py-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    {ad.impressions && (
-                      <span title="Impressions">
-                        <span className="font-medium text-foreground">
-                          {ad.impressions}
-                        </span>{" "}
-                        impressions
-                      </span>
-                    )}
+                    {(() => {
+                      const est = getAdEstImpressions(ad, countries, impressionsToNumber);
+                      return est > 0 ? (
+                        <span title="Est. Impressions">
+                          <span className="font-medium text-foreground">
+                            {formatEstImpressions(est)}
+                          </span>{" "}
+                          Est. Impressions
+                        </span>
+                      ) : null;
+                    })()}
                     {ad.targetLocation && (
                       <span title="Location">{ad.targetLocation}</span>
                     )}
