@@ -212,31 +212,56 @@ export default async function ExplorePage({
   const start = (currentPage - 1) * PAGE_SIZE;
   const paginatedAds = ads.slice(start, start + PAGE_SIZE);
 
-  // Filter options for sidebar
-  const [advertisersWithAds, allFormats, adsForOptions] = await Promise.all([
-    prisma.advertiser.findMany({
-      where: { ads: { some: {} } },
-      select: { id: true, name: true, logoUrl: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.ad.findMany({ select: { format: true } }),
-    prisma.ad.findMany({
-      select: { targetLanguage: true, callToAction: true, countryImpressionsEstimate: true },
-    }),
-  ]);
-  const formatCountMap = allFormats.reduce<Record<string, number>>((acc, { format }) => {
-    acc[format] = (acc[format] ?? 0) + 1;
-    return acc;
-  }, {});
-  const formatCounts = Object.entries(formatCountMap).map(([format, count]) => ({ format, count }));
+  // Filter options for sidebar – derive from the ads we already fetched
+  const advertiserMap = new Map<string, { id: string; name: string | null; logoUrl: string | null }>();
+  const formatCountMap: Record<string, number> = {};
   const countrySet = new Set<string>();
-  adsForOptions.forEach((ad) => {
-    const obj = ad.countryImpressionsEstimate as Record<string, unknown> | null;
-    if (obj && typeof obj === "object") Object.keys(obj).forEach((k) => countrySet.add(k));
+  const languageSet = new Set<string>();
+  const ctaSet = new Set<string>();
+
+  for (const ad of ads) {
+    // Advertisers (unique by id, sorted by name later)
+    if (ad.advertiser) {
+      if (!advertiserMap.has(ad.advertiser.id)) {
+        advertiserMap.set(ad.advertiser.id, {
+          id: ad.advertiser.id,
+          name: ad.advertiser.name,
+          logoUrl: ad.advertiser.logoUrl,
+        });
+      }
+    }
+
+    // Formats with counts
+    if (ad.format) {
+      formatCountMap[ad.format] = (formatCountMap[ad.format] ?? 0) + 1;
+    }
+
+    // Countries from countryImpressionsEstimate
+    const countryObj = ad.countryImpressionsEstimate as Record<string, unknown> | null;
+    if (countryObj && typeof countryObj === "object") {
+      for (const key of Object.keys(countryObj)) {
+        countrySet.add(key);
+      }
+    }
+
+    // Languages
+    if (ad.targetLanguage) languageSet.add(ad.targetLanguage);
+
+    // CTAs
+    if (ad.callToAction) ctaSet.add(ad.callToAction);
+  }
+
+  const advertisersWithAds = Array.from(advertiserMap.values()).sort((a, b) => {
+    const an = (a.name ?? "").toLocaleLowerCase();
+    const bn = (b.name ?? "").toLocaleLowerCase();
+    if (an < bn) return -1;
+    if (an > bn) return 1;
+    return 0;
   });
+  const formatCounts = Object.entries(formatCountMap).map(([format, count]) => ({ format, count }));
   const countriesList = Array.from(countrySet).sort();
-  const languagesList = Array.from(new Set(adsForOptions.map((a) => a.targetLanguage).filter(Boolean))) as string[];
-  const ctasList = Array.from(new Set(adsForOptions.map((a) => a.callToAction).filter(Boolean))) as string[];
+  const languagesList = Array.from(languageSet);
+  const ctasList = Array.from(ctaSet);
 
   const filterOptions = {
     advertisers: advertisersWithAds,
