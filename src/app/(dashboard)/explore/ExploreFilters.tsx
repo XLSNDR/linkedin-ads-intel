@@ -207,11 +207,9 @@ type SectionId =
   | "advertiser"
   | "format"
   | "promotedBy"
-  | "status"
   | "minImpressions"
   | "country"
   | "language"
-  | "dateRange"
   | "cta";
 
 export function ExploreFilters({ options }: { options: FilterOptions }) {
@@ -231,23 +229,18 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
   const advertisers = getParam(searchParams, "advertisers");
   const formats = getParam(searchParams, "formats");
   const promotedBy = getParam(searchParams, "promotedBy");
-  const status = searchParams.get("status") ?? "";
   const minImpressions = searchParams.get("minImpressions") ?? "";
   const countries = getParam(searchParams, "countries");
   const languages = getParam(searchParams, "languages");
-  const startDate = searchParams.get("startDate") ?? "";
-  const endDate = searchParams.get("endDate") ?? "";
   const ctas = getParam(searchParams, "ctas");
 
   const hasValue: Record<SectionId, boolean> = {
     advertiser: advertisers.length > 0,
     format: formats.length > 0,
     promotedBy: promotedBy.length > 0,
-    status: status !== "",
     minImpressions: minImpressions !== "",
     country: countries.length > 0,
     language: languages.length > 0,
-    dateRange: startDate !== "" || endDate !== "",
     cta: ctas.length > 0,
   };
 
@@ -287,12 +280,9 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
     advertisers.length > 0 ||
     formats.length > 0 ||
     promotedBy.length > 0 ||
-    status !== "" ||
     minImpressions !== "" ||
     countries.length > 0 ||
     languages.length > 0 ||
-    startDate !== "" ||
-    endDate !== "" ||
     ctas.length > 0;
 
   return (
@@ -376,29 +366,6 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         </div>
       </FilterSection>
 
-      {/* Status */}
-      <FilterSection
-        id="status"
-        title="Status"
-        open={isSectionOpen("status")}
-        onToggle={() => toggleSection("status")}
-      >
-        <div className="flex gap-2">
-          {(["", "active", "stopped"] as const).map((s) => (
-            <button
-              key={s || "all"}
-              type="button"
-              onClick={() => update({ status: s })}
-              className={`rounded-md px-2.5 py-1.5 text-xs font-medium ${
-                status === s ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"
-              }`}
-            >
-              {s === "" ? "All" : s === "active" ? "Active" : "Stopped"}
-            </button>
-          ))}
-        </div>
-      </FilterSection>
-
       {/* Min. Est. Impressions */}
       <FilterSection
         id="minImpressions"
@@ -467,29 +434,6 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
           {safeOptions.languages.length === 0 && (
             <span className="text-xs text-muted-foreground">None</span>
           )}
-        </div>
-      </FilterSection>
-
-      {/* Daterange */}
-      <FilterSection
-        id="dateRange"
-        title="Date range (ads running in period)"
-        open={isSectionOpen("dateRange")}
-        onToggle={() => toggleSection("dateRange")}
-      >
-        <div className="space-y-2">
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => update({ startDate: e.target.value })}
-            className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-          />
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => update({ endDate: e.target.value })}
-            className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-          />
         </div>
       </FilterSection>
 

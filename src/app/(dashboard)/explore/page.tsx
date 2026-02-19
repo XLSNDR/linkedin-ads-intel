@@ -71,7 +71,6 @@ type SearchParams = {
   sort?: string;
   advertisers?: string;
   formats?: string;
-  status?: string;
   minImpressions?: string;
   countries?: string;
   languages?: string;
@@ -95,7 +94,6 @@ export default async function ExplorePage({
   const sort = params.sort ?? "date";
   const advertiserIds = params.advertisers?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
   const formats = params.formats?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
-  const status = params.status ?? "";
   const minImpressions = params.minImpressions?.trim() ? parseInt(params.minImpressions, 10) : null;
   const countries = params.countries?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
   const languages = params.languages?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
@@ -112,8 +110,6 @@ export default async function ExplorePage({
 
   if (advertiserIds.length) whereConditions.push({ advertiserId: { in: advertiserIds } });
   if (formats.length) whereConditions.push({ format: { in: formats } });
-  if (status === "active") whereConditions.push({ OR: [{ endDate: { gte: today } }, { endDate: null }] });
-  if (status === "stopped") whereConditions.push({ endDate: { not: null, lt: today } });
   if (minImpressions != null && !Number.isNaN(minImpressions)) whereConditions.push({ impressionsEstimate: { gte: minImpressions } });
   // Country filter applied in memory below (Prisma JSON path filter can fail in serverless/Postgres)
   if (languages.length) whereConditions.push({ targetLanguage: { in: languages } });
