@@ -421,9 +421,9 @@ function CtaFilter({
   }, []);
 
   const q = searchQuery.trim().toLowerCase();
-  const filtered = ctaOptions.filter(
+  const filtered = [...ctaOptions.filter(
     (cta) => !selected.includes(cta) && cta.toLowerCase().includes(q)
-  );
+  )].sort((a, b) => a.localeCompare(b));
 
   const add = (cta: string) => {
     onSelectionChange([...selected, cta]);
