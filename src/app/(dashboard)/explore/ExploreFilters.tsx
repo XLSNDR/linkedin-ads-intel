@@ -193,6 +193,108 @@ function AdvertiserFilter({
   );
 }
 
+function CountryFilter({
+  countries: countryOptions,
+  selected,
+  onSelectionChange,
+}: {
+  countries: string[];
+  selected: string[];
+  onSelectionChange: (countries: string[]) => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = countryOptions.filter(
+    (c) => !selected.includes(c) && c.toLowerCase().includes(q)
+  );
+
+  const add = (country: string) => {
+    onSelectionChange([...selected, country]);
+    setSearchQuery("");
+    setDropdownOpen(false);
+  };
+  const remove = (country: string) => {
+    onSelectionChange(selected.filter((x) => x !== country));
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="relative">
+        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+        </span>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => setDropdownOpen(true)}
+          placeholder="Search for country..."
+          className="w-full rounded-md border border-input bg-background py-2 pl-8 pr-3 text-sm"
+          aria-label="Search for country"
+        />
+      </div>
+      {dropdownOpen && (
+        <ul
+          className="absolute z-10 mt-1 w-full rounded-md border border-border bg-popover shadow-md max-h-56 overflow-auto"
+          role="listbox"
+        >
+          {filtered.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-muted-foreground">No matches</li>
+          ) : (
+            filtered.map((c) => (
+              <li key={c} role="option" aria-selected="false">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/80 focus:bg-muted/80"
+                  onClick={() => add(c)}
+                >
+                  <span className="truncate">{c}</span>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+      {selected.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selected.map((c) => (
+            <span
+              key={c}
+              className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium"
+            >
+              <span className="truncate max-w-[120px]">{c}</span>
+              <button
+                type="button"
+                onClick={() => remove(c)}
+                className="ml-0.5 -mr-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground"
+                aria-label={`Remove ${c}`}
+              >
+                <span aria-hidden>×</span>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function getParam(params: URLSearchParams, key: string): string[] {
   const v = params.get(key);
   if (!v?.trim()) return [];
@@ -393,30 +495,18 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         </div>
       </FilterSection>
 
-      {/* Country (multiselect) */}
+      {/* Country: search + dropdown + pills (same UX as Advertiser) */}
       <FilterSection
         id="country"
         title="Country"
         open={isSectionOpen("country")}
         onToggle={() => toggleSection("country")}
       >
-        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-          {safeOptions.countries.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => toggleMulti("countries", countries, c)}
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                countries.includes(c) ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-          {safeOptions.countries.length === 0 && (
-            <span className="text-xs text-muted-foreground">None</span>
-          )}
-        </div>
+        <CountryFilter
+          countries={safeOptions.countries}
+          selected={countries}
+          onSelectionChange={(ids) => update({ countries: ids })}
+        />
       </FilterSection>
 
       {/* Language (multiselect) */}
