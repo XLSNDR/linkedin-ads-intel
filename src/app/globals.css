@@ -8,11 +8,11 @@
   }
 }
 
-/* Explore ad card: ~380px so 3 fit per row at 100% zoom (like 90% zoom view) */
+/* Explore ad card: 400px width (LinkedIn Ads Library style) */
 @media (min-width: 640px) {
   .explore-ad-card-item {
-    width: 380px;
-    min-width: 380px;
+    width: 400px;
+    min-width: 400px;
   }
 }
 
