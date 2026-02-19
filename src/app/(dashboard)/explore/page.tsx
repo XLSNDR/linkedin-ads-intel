@@ -313,13 +313,13 @@ export default async function ExplorePage({
           </p>
         ) : (
           <>
-          {/* Grid: always 3 columns on sm+ so we get 3 ads per row; column width adapts to container */}
-          <ul className="grid grid-cols-1 sm:grid-cols-3 gap-3 list-none p-0 m-0 max-w-[1224px] mx-auto w-full">
+          {/* LinkedIn-style: list capped at 1224px; each item max-width calc(33.33% - 16px) for ~400px cards */}
+          <ul className="explore-ads-list grid grid-cols-1 sm:grid-cols-3 gap-3 list-none p-0 m-0 mx-auto w-full">
             {paginatedAds.map((ad) => {
               const advertiser = ad.advertiser;
               if (!advertiser) return null;
               return (
-              <li key={ad.id} className="min-w-0">
+              <li key={ad.id} className="explore-ad-card-item min-w-0">
                 <article className="w-full rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col">
                   {/* 1. Header: logo + company + Promoted | Status + Save */}
                   <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-1">
