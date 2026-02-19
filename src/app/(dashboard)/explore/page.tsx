@@ -313,8 +313,8 @@ export default async function ExplorePage({
           </p>
         ) : (
           <>
-          {/* LinkedIn-style: flex wrap + fixed 400px per item (like search-result-item max-w-[calc(33.33%-16px)] on a fixed-width container) */}
-          <ul className="flex flex-wrap gap-3 list-none p-0 m-0">
+          {/* Flex wrap + 380px cards; max-width so we get 3 columns at 100% zoom (380*3 + 12*2 = 1164) */}
+          <ul className="flex flex-wrap gap-3 list-none p-0 m-0 max-w-[1164px] mx-auto">
             {paginatedAds.map((ad) => {
               const advertiser = ad.advertiser;
               if (!advertiser) return null;
@@ -369,12 +369,12 @@ export default async function ExplorePage({
                       className="flex flex-col hover:no-underline focus:no-underline"
                     >
                       {ad.mediaUrl && (
-                        <div className="relative w-full min-h-[120px] bg-muted">
+                        <div className="relative w-full min-h-[114px] bg-muted">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={ad.mediaUrl}
                             alt=""
-                            className="w-full object-cover min-h-[120px]"
+                            className="w-full object-cover min-h-[114px]"
                           />
                         </div>
                       )}

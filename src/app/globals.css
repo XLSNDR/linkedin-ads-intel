@@ -8,11 +8,11 @@
   }
 }
 
-/* Explore ad card: fixed 400px width (LinkedIn Ads Library style) - not dependent on Tailwind arbitrary values */
+/* Explore ad card: ~380px so 3 fit per row at 100% zoom (like 90% zoom view) */
 @media (min-width: 640px) {
   .explore-ad-card-item {
-    width: 400px;
-    min-width: 400px;
+    width: 380px;
+    min-width: 380px;
   }
 }
 
