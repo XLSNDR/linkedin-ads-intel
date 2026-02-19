@@ -381,7 +381,7 @@ export default async function ExplorePage({
                       <div className="border-t border-border bg-muted/30 p-1.5 flex justify-between gap-2 items-start">
                         {ad.headline ? (
                           <header className="grow min-w-[40%] break-words">
-                            <h2 className="text-xs font-semibold leading-[16px] text-foreground break-words">
+                            <h2 className="text-[11px] font-semibold leading-[15px] text-foreground break-words">
                               {ad.headline}
                             </h2>
                           </header>
