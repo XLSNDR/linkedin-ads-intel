@@ -230,6 +230,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
   const formats = getParam(searchParams, "formats");
   const promotedBy = getParam(searchParams, "promotedBy");
   const minImpressions = searchParams.get("minImpressions") ?? "";
+  const [minImpressionsInput, setMinImpressionsInput] = useState(minImpressions);
   const countries = getParam(searchParams, "countries");
   const languages = getParam(searchParams, "languages");
   const ctas = getParam(searchParams, "ctas");
@@ -275,6 +276,11 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
   };
 
   const clearAll = () => router.push("/explore");
+
+  // Keep local min-impressions input in sync with URL (e.g. after Clear all or external nav)
+  useEffect(() => {
+    setMinImpressionsInput(minImpressions);
+  }, [minImpressions]);
 
   const hasAny =
     advertisers.length > 0 ||
@@ -324,23 +330,44 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         </div>
       </FilterSection>
 
-      {/* Min. Est. Impressions */}
+      {/* Min. Est. Impressions: type in input, then click Filter to apply (avoids URL update on every keystroke) */}
       <FilterSection
         id="minImpressions"
         title="Min. Est. Impressions"
         open={isSectionOpen("minImpressions")}
         onToggle={() => toggleSection("minImpressions")}
       >
-        <input
-          type="number"
-          min={0}
-          value={minImpressions}
-          onChange={(e) =>
-            update({ minImpressions: e.target.value.replace(/\D/g, "") })
-          }
-          placeholder="e.g. 1000"
-          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-        />
+        <div className="flex gap-2">
+          <input
+            type="number"
+            min={0}
+            value={minImpressionsInput}
+            onChange={(e) =>
+              setMinImpressionsInput(e.target.value.replace(/\D/g, ""))
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                update({
+                  minImpressions: minImpressionsInput.trim(),
+                });
+              }
+            }}
+            placeholder="e.g. 1000"
+            className="flex-1 min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            aria-label="Min. Est. Impressions"
+          />
+          <button
+            type="button"
+            onClick={() =>
+              update({
+                minImpressions: minImpressionsInput.trim(),
+              })
+            }
+            className="shrink-0 rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Filter
+          </button>
+        </div>
       </FilterSection>
 
       {/* Country (multiselect) */}
