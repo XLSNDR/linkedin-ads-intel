@@ -8,17 +8,21 @@
   }
 }
 
-/* Explore ads list: cap so calc(33.33% - 16px) = 400px → 1248px (LinkedIn Ads Library style) */
+/* Explore ads: fixed 400px columns so cards never exceed 400px; list shrinks to content width */
 .explore-ads-list {
-  max-width: 1248px !important;
+  max-width: 100% !important;
 }
 
-/* Each ad card: LinkedIn style — max 1/3 of container minus gap so cards stay ~400px when list is 1224px */
 @media (min-width: 640px) {
-  .explore-ad-card-item {
-    width: 100%;
-    max-width: calc(33.333333% - 16px);
+  .explore-ads-list {
+    grid-template-columns: repeat(3, minmax(0, 400px));
+    width: max-content !important;
+    max-width: 100%;
   }
+}
+
+.explore-ad-card-item {
+  min-width: 0;
 }
 
 
