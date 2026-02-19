@@ -40,6 +40,12 @@ export default async function AdminLayout({
         >
           Advertisers
         </Link>
+        <Link
+          href="/admin/import"
+          className="text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          Import
+        </Link>
       </div>
       {children}
     </div>
