@@ -82,11 +82,15 @@ type SearchParams = {
   searchMode?: string;
 };
 
+/** Explore uses searchParams for filters; must be dynamic (no static pre-render at build). */
+export const dynamic = "force-dynamic";
+
 export default async function ExplorePage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  try {
   const params = await searchParams;
   const sort = params.sort ?? "date";
   const advertiserIds = params.advertisers?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
@@ -244,29 +248,32 @@ export default async function ExplorePage({
           </p>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {ads.map((ad) => (
+            {ads.map((ad) => {
+              const advertiser = ad.advertiser;
+              if (!advertiser) return null;
+              return (
               <li key={ad.id}>
                 <article className="rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col">
                   {/* 1. Header: logo + company + Promoted | Status + Save */}
                   <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-1">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="relative h-6 w-6 shrink-0 rounded overflow-hidden bg-muted">
-                        {ad.advertiser.logoUrl ? (
+                        {advertiser.logoUrl ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img
-                            src={ad.advertiser.logoUrl}
+                            src={advertiser.logoUrl}
                             alt=""
                             className="h-full w-full object-cover"
                           />
                         ) : (
                           <span className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground">
-                            {ad.advertiser.name.charAt(0)}
+                            {advertiser.name?.charAt(0) ?? "?"}
                           </span>
                         )}
                       </div>
                       <div className="flex min-w-0 flex-col">
                         <span className="text-sm font-bold leading-5 truncate">
-                          {ad.advertiser.name}
+                          {advertiser.name ?? "—"}
                         </span>
                         <span className="text-xs text-muted-foreground leading-[15px]">
                           Promoted
@@ -407,10 +414,17 @@ export default async function ExplorePage({
                   </div>
                 </article>
               </li>
-            ))}
+            );
+            })}
           </ul>
         )}
       </main>
     </div>
   );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error("[Explore page error]", message, stack ?? err);
+    throw err;
+  }
 }
