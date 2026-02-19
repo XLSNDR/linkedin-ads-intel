@@ -131,7 +131,6 @@ export default async function ExplorePage({
 
   if (advertiserIds.length) whereConditions.push({ advertiserId: { in: advertiserIds } });
   if (formats.length) whereConditions.push({ format: { in: formats } });
-  if (minImpressions != null && !Number.isNaN(minImpressions)) whereConditions.push({ impressionsEstimate: { gte: minImpressions } });
   // Country filter applied in memory below (Prisma JSON path filter can fail in serverless/Postgres)
   if (languages.length) whereConditions.push({ targetLanguage: { in: languages } });
   if (startDateParam && endDateParam) {
@@ -179,6 +178,14 @@ export default async function ExplorePage({
       const est = ad.countryImpressionsEstimate as Record<string, unknown> | null;
       if (!est || typeof est !== "object") return false;
       return countries.some((c) => c in est);
+    });
+  }
+
+  // Apply Min. Est. Impressions filter in-memory using the same logic as display/sort
+  if (minImpressions != null && !Number.isNaN(minImpressions)) {
+    ads = ads.filter((ad) => {
+      const est = getAdEstImpressions(ad, countries, impressionsToNumber);
+      return est >= minImpressions;
     });
   }
 

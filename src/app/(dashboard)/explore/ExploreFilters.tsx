@@ -300,28 +300,6 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         )}
       </div>
 
-      {/* Advertiser: search + dropdown + pills */}
-      <FilterSection
-        id="advertiser"
-        title="Advertiser"
-        icon={
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-          </svg>
-        }
-        open={isSectionOpen("advertiser")}
-        onToggle={() => toggleSection("advertiser")}
-      >
-        <AdvertiserFilter
-          advertisers={safeOptions.advertisers}
-          selectedIds={advertisers}
-          onSelectionChange={(ids) => update({ advertisers: ids })}
-        />
-      </FilterSection>
-
       {/* Ad Format (multiselect) */}
       <FilterSection
         id="format"
@@ -341,26 +319,6 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
               <span>
                 {safeOptions.formatLabels[f.format] ?? f.format} ({f.count})
               </span>
-            </label>
-          ))}
-        </div>
-      </FilterSection>
-
-      {/* Promoted by (placeholder – no backend yet) */}
-      <FilterSection
-        id="promotedBy"
-        title="Promoted by"
-        open={isSectionOpen("promotedBy")}
-        onToggle={() => toggleSection("promotedBy")}
-      >
-        <p className="text-xs text-muted-foreground mb-2">
-          Coming soon (data not yet in Apify).
-        </p>
-        <div className="space-y-1.5">
-          {PROMOTED_BY_OPTIONS.map((o) => (
-            <label key={o.value} className="flex items-center gap-2 text-sm cursor-pointer opacity-60">
-              <input type="checkbox" disabled className="rounded border-input" />
-              <span>{o.label}</span>
             </label>
           ))}
         </div>
@@ -460,6 +418,48 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
           {safeOptions.ctas.length === 0 && (
             <span className="text-xs text-muted-foreground">None</span>
           )}
+        </div>
+      </FilterSection>
+
+      {/* Advertiser: search + dropdown + pills (moved to bottom) */}
+      <FilterSection
+        id="advertiser"
+        title="Advertiser"
+        icon={
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+        }
+        open={isSectionOpen("advertiser")}
+        onToggle={() => toggleSection("advertiser")}
+      >
+        <AdvertiserFilter
+          advertisers={safeOptions.advertisers}
+          selectedIds={advertisers}
+          onSelectionChange={(ids) => update({ advertisers: ids })}
+        />
+      </FilterSection>
+
+      {/* Promoted by (placeholder – no backend yet, keep at very bottom) */}
+      <FilterSection
+        id="promotedBy"
+        title="Promoted by"
+        open={isSectionOpen("promotedBy")}
+        onToggle={() => toggleSection("promotedBy")}
+      >
+        <p className="text-xs text-muted-foreground mb-2">
+          Coming soon (data not yet in Apify).
+        </p>
+        <div className="space-y-1.5">
+          {PROMOTED_BY_OPTIONS.map((o) => (
+            <label key={o.value} className="flex items-center gap-2 text-sm cursor-pointer opacity-60">
+              <input type="checkbox" disabled className="rounded border-input" />
+              <span>{o.label}</span>
+            </label>
+          ))}
         </div>
       </FilterSection>
     </aside>
