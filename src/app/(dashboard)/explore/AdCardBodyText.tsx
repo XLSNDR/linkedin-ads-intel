@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 
-// Rough threshold to decide when to show the truncation UI.
-// We still use CSS (max-height + overflow-hidden) for the actual cut-off,
-// matching LinkedIn's behaviour from the provided HTML.
-const TRUNCATE_LENGTH = 220;
+const TRUNCATE_THRESHOLD = 150;
 
 export function AdCardBodyText({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
@@ -13,14 +10,13 @@ export function AdCardBodyText({ text }: { text: string }) {
   if (!text || text === "—") {
     return (
       <p className="text-sm text-foreground break-words leading-[18px] whitespace-pre-wrap">
-        —{/* keep simple dash for empty text */}
+        —
       </p>
     );
   }
 
-  const needsTruncation = text.length > TRUNCATE_LENGTH;
+  const needsTruncation = text.length > TRUNCATE_THRESHOLD;
 
-  // Short texts: no truncation, no button.
   if (!needsTruncation) {
     return (
       <p className="text-sm text-foreground break-words leading-[18px] whitespace-pre-wrap">
@@ -29,6 +25,7 @@ export function AdCardBodyText({ text }: { text: string }) {
     );
   }
 
+  // Truncation UI for longer texts (over threshold).
   // Match LinkedIn-style container: full text in the DOM, CSS controls the cut-off,
   // and a “…see more” button sits at the bottom-right when collapsed.
   return (
