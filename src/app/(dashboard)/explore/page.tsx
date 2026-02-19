@@ -44,7 +44,11 @@ function formatEstImpressions(n: number): string {
   return n.toLocaleString("de-DE", { maximumFractionDigits: 0 });
 }
 
-/** Get estimated impressions for an ad: when countries are selected, sum their values from countryImpressionsEstimate; otherwise use impressionsEstimate. */
+/** Get estimated impressions for an ad.
+ * - When specific countries are selected, ONLY use their values from countryImpressionsEstimate.
+ *   If none of the selected countries have data, treat the estimate as 0 (no fallback to global).
+ * - When no countries are selected, use impressionsEstimate or fall back to parsing impressions.
+ */
 function getAdEstImpressions(
   ad: { countryImpressionsEstimate: unknown; impressionsEstimate: number | null; impressions: string | null },
   selectedCountries: string[],
@@ -61,7 +65,12 @@ function getAdEstImpressions(
       if (sum > 0) return sum;
     }
   }
-  return ad.impressionsEstimate ?? impressionsToNumberFn(ad.impressions);
+  // No country selected, or no data for selected countries: fall back to global estimate
+  if (selectedCountries.length === 0) {
+    return ad.impressionsEstimate ?? impressionsToNumberFn(ad.impressions);
+  }
+  // Countries selected but no per-country data → treat as 0 so it won't pass Min. Est. Impressions
+  return 0;
 }
 
 /** Parse impression string (e.g. "100k-150k", "1k-5k") to midpoint number for sorting. */
