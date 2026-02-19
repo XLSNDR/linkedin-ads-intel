@@ -219,6 +219,15 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
   const searchParams = useSearchParams();
   const [sectionOpen, setSectionOpen] = useState<Partial<Record<SectionId, boolean>>>({});
 
+  const safeOptions = {
+    advertisers: options.advertisers ?? [],
+    formats: options.formats ?? [],
+    countries: Array.isArray(options.countries) ? options.countries : [],
+    languages: Array.isArray(options.languages) ? options.languages : [],
+    ctas: Array.isArray(options.ctas) ? options.ctas : [],
+    formatLabels: options.formatLabels ?? {},
+  };
+
   const advertisers = getParam(searchParams, "advertisers");
   const formats = getParam(searchParams, "formats");
   const promotedBy = getParam(searchParams, "promotedBy");
@@ -317,7 +326,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         onToggle={() => toggleSection("advertiser")}
       >
         <AdvertiserFilter
-          advertisers={options.advertisers}
+          advertisers={safeOptions.advertisers}
           selectedIds={advertisers}
           onSelectionChange={(ids) => update({ advertisers: ids })}
         />
@@ -331,7 +340,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         onToggle={() => toggleSection("format")}
       >
         <div className="space-y-1.5 max-h-40 overflow-y-auto">
-          {options.formats.map((f) => (
+          {safeOptions.formats.map((f) => (
             <label key={f.format} className="flex items-center gap-2 text-sm cursor-pointer">
               <input
                 type="checkbox"
@@ -340,7 +349,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
                 className="rounded border-input"
               />
               <span>
-                {options.formatLabels[f.format] ?? f.format} ({f.count})
+                {safeOptions.formatLabels[f.format] ?? f.format} ({f.count})
               </span>
             </label>
           ))}
@@ -417,7 +426,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         onToggle={() => toggleSection("country")}
       >
         <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-          {options.countries.map((c) => (
+          {safeOptions.countries.map((c) => (
             <button
               key={c}
               type="button"
@@ -429,7 +438,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
               {c}
             </button>
           ))}
-          {options.countries.length === 0 && (
+          {safeOptions.countries.length === 0 && (
             <span className="text-xs text-muted-foreground">None</span>
           )}
         </div>
@@ -443,7 +452,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         onToggle={() => toggleSection("language")}
       >
         <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-          {options.languages.map((lang) => (
+          {safeOptions.languages.map((lang) => (
             <button
               key={lang}
               type="button"
@@ -455,7 +464,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
               {lang}
             </button>
           ))}
-          {options.languages.length === 0 && (
+          {safeOptions.languages.length === 0 && (
             <span className="text-xs text-muted-foreground">None</span>
           )}
         </div>
@@ -492,7 +501,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         onToggle={() => toggleSection("cta")}
       >
         <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-          {options.ctas.map((cta) => (
+          {safeOptions.ctas.map((cta) => (
             <button
               key={cta}
               type="button"
@@ -504,7 +513,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
               {cta}
             </button>
           ))}
-          {options.ctas.length === 0 && (
+          {safeOptions.ctas.length === 0 && (
             <span className="text-xs text-muted-foreground">None</span>
           )}
         </div>
