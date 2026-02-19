@@ -82,6 +82,8 @@ function impressionsToNumber(impressions: string | null): number {
   return 0;
 }
 
+const PAGE_SIZE = 50;
+
 type SearchParams = {
   sort?: string;
   advertisers?: string;
@@ -94,6 +96,7 @@ type SearchParams = {
   ctas?: string;
   search?: string;
   searchMode?: string;
+  page?: string;
 };
 
 /** Explore uses searchParams for filters; must be dynamic (no static pre-render at build). */
@@ -117,6 +120,8 @@ export default async function ExplorePage({
   const ctas = params.ctas?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
   const search = params.search?.trim() ?? "";
   const searchMode = params.searchMode ?? "keyword";
+  const pageParam = params.page?.trim();
+  const pageNum = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -200,7 +205,10 @@ export default async function ExplorePage({
     });
   }
 
-  ads = ads.slice(0, 50);
+  const totalCount = ads.length;
+  const maxPage = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const currentPage = Math.min(pageNum, maxPage);
+  const paginatedAds = ads.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // Filter options for sidebar
   const [advertisersWithAds, allFormats, adsForOptions] = await Promise.all([
@@ -246,20 +254,23 @@ export default async function ExplorePage({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h1 className="text-2xl font-semibold">Explore Ads</h1>
             <p className="text-muted-foreground text-sm">
-              {ads.length} {ads.length === 1 ? "ad" : "ads"}
+              {totalCount === 0
+                ? "0 ads"
+                : `Showing ${(currentPage - 1) * PAGE_SIZE + 1}-${Math.min(currentPage * PAGE_SIZE, totalCount)} of ${totalCount}`}
             </p>
           </div>
           <ExploreSearchSort sort={sort} hasCountryFilter={countries.length > 0} />
         </div>
 
-        {ads.length === 0 ? (
+        {paginatedAds.length === 0 ? (
           <p className="text-muted-foreground">
             No ads yet. Add advertisers via the test scraper or Advertisers page
             to see ads here.
           </p>
         ) : (
+          <>
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {ads.map((ad) => {
+            {paginatedAds.map((ad) => {
               const advertiser = ad.advertiser;
               if (!advertiser) return null;
               return (
@@ -414,6 +425,78 @@ export default async function ExplorePage({
             );
             })}
           </ul>
+
+          {totalCount > PAGE_SIZE && (() => {
+            function exploreUrl(p: SearchParams, page: number): string {
+              const q = new URLSearchParams();
+              if (p.advertisers) q.set("advertisers", p.advertisers);
+              if (p.formats) q.set("formats", p.formats);
+              if (p.minImpressions) q.set("minImpressions", p.minImpressions);
+              if (p.countries) q.set("countries", p.countries);
+              if (p.languages) q.set("languages", p.languages);
+              if (p.startDate) q.set("startDate", p.startDate);
+              if (p.endDate) q.set("endDate", p.endDate);
+              if (p.ctas) q.set("ctas", p.ctas);
+              if (p.search) q.set("search", p.search);
+              if (p.searchMode) q.set("searchMode", p.searchMode);
+              if (p.sort) q.set("sort", p.sort);
+              if (page > 1) q.set("page", String(page));
+              const s = q.toString();
+              return s ? `/explore?${s}` : "/explore";
+            }
+            const prevUrl = currentPage > 1 ? exploreUrl(params, currentPage - 1) : null;
+            const nextUrl = currentPage < maxPage ? exploreUrl(params, currentPage + 1) : null;
+            const pages: number[] = [];
+            let lo = Math.max(1, currentPage - 2);
+            let hi = Math.min(maxPage, currentPage + 2);
+            if (hi - lo < 4) {
+              if (lo === 1) hi = Math.min(maxPage, 5);
+              else hi = maxPage; lo = Math.max(1, hi - 4);
+            }
+            for (let i = lo; i <= hi; i++) pages.push(i);
+            return (
+              <nav className="mt-8 flex flex-wrap items-center justify-center gap-2" aria-label="Pagination">
+                {prevUrl ? (
+                  <Link href={prevUrl} className="rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted/80">
+                    Previous
+                  </Link>
+                ) : (
+                  <span className="rounded-md border border-input bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground cursor-not-allowed">
+                    Previous
+                  </span>
+                )}
+                {lo > 1 && (
+                  <>
+                    <Link href={exploreUrl(params, 1)} className="rounded-md border border-input bg-background px-2.5 py-1.5 text-sm hover:bg-muted/80">1</Link>
+                    {lo > 2 && <span className="px-1 text-muted-foreground">…</span>}
+                  </>
+                )}
+                {pages.map((p) => (
+                  p === currentPage ? (
+                    <span key={p} className="rounded-md border border-primary bg-primary/10 px-2.5 py-1.5 text-sm font-medium" aria-current="page">{p}</span>
+                  ) : (
+                    <Link key={p} href={exploreUrl(params, p)} className="rounded-md border border-input bg-background px-2.5 py-1.5 text-sm hover:bg-muted/80">{p}</Link>
+                  )
+                ))}
+                {hi < maxPage && (
+                  <>
+                    {hi < maxPage - 1 && <span className="px-1 text-muted-foreground">…</span>}
+                    <Link href={exploreUrl(params, maxPage)} className="rounded-md border border-input bg-background px-2.5 py-1.5 text-sm hover:bg-muted/80">{maxPage}</Link>
+                  </>
+                )}
+                {nextUrl ? (
+                  <Link href={nextUrl} className="rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted/80">
+                    Next
+                  </Link>
+                ) : (
+                  <span className="rounded-md border border-input bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground cursor-not-allowed">
+                    Next
+                  </span>
+                )}
+              </nav>
+            );
+          })()}
+          </>
         )}
       </main>
     </div>
