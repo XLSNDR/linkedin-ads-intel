@@ -17,6 +17,61 @@ const PROMOTED_BY_OPTIONS = [
   { value: "thought_leader", label: "Thought leader" },
 ];
 
+const CHEVRON_DOWN = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+const CHEVRON_UP = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="m18 15-6-6-6 6" />
+  </svg>
+);
+
+function FilterSection({
+  id,
+  title,
+  icon,
+  open,
+  onToggle,
+  children,
+}: {
+  id: string;
+  title: string;
+  icon?: React.ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-border/50 pb-3 last:border-0 last:pb-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-2 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+        aria-expanded={open}
+        aria-controls={`filter-${id}`}
+        id={`filter-heading-${id}`}
+      >
+        <span className="flex items-center gap-2">
+          {icon ?? null}
+          <span>{title}</span>
+        </span>
+        <span className="shrink-0 text-foreground/70">{open ? CHEVRON_UP : CHEVRON_DOWN}</span>
+      </button>
+      <div
+        id={`filter-${id}`}
+        role="region"
+        aria-labelledby={`filter-heading-${id}`}
+        hidden={!open}
+        className={open ? "mt-2" : "sr-only"}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function AdvertiserFilter({
   advertisers,
   selectedIds,
@@ -58,9 +113,6 @@ function AdvertiserFilter({
 
   return (
     <div ref={containerRef} className="relative">
-      <h3 className="text-xs font-medium text-muted-foreground mb-2">
-        Advertiser
-      </h3>
       <div className="relative">
         <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden>
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -151,9 +203,21 @@ function setParam(params: URLSearchParams, key: string, values: string[]) {
   else params.delete(key);
 }
 
+type SectionId =
+  | "advertiser"
+  | "format"
+  | "promotedBy"
+  | "status"
+  | "minImpressions"
+  | "country"
+  | "language"
+  | "dateRange"
+  | "cta";
+
 export function ExploreFilters({ options }: { options: FilterOptions }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [sectionOpen, setSectionOpen] = useState<Partial<Record<SectionId, boolean>>>({});
 
   const advertisers = getParam(searchParams, "advertisers");
   const formats = getParam(searchParams, "formats");
@@ -165,6 +229,27 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
   const startDate = searchParams.get("startDate") ?? "";
   const endDate = searchParams.get("endDate") ?? "";
   const ctas = getParam(searchParams, "ctas");
+
+  const hasValue: Record<SectionId, boolean> = {
+    advertiser: advertisers.length > 0,
+    format: formats.length > 0,
+    promotedBy: promotedBy.length > 0,
+    status: status !== "",
+    minImpressions: minImpressions !== "",
+    country: countries.length > 0,
+    language: languages.length > 0,
+    dateRange: startDate !== "" || endDate !== "",
+    cta: ctas.length > 0,
+  };
+
+  function isSectionOpen(id: SectionId) {
+    return sectionOpen[id] ?? (id === "advertiser" || hasValue[id]);
+  }
+
+  function toggleSection(id: SectionId) {
+    const current = isSectionOpen(id);
+    setSectionOpen((prev) => ({ ...prev, [id]: !current }));
+  }
 
   const update = useCallback(
     (updates: Record<string, string | string[]>) => {
@@ -217,17 +302,34 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
       </div>
 
       {/* Advertiser: search + dropdown + pills */}
-      <AdvertiserFilter
-        advertisers={options.advertisers}
-        selectedIds={advertisers}
-        onSelectionChange={(ids) => update({ advertisers: ids })}
-      />
+      <FilterSection
+        id="advertiser"
+        title="Advertiser"
+        icon={
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+        }
+        open={isSectionOpen("advertiser")}
+        onToggle={() => toggleSection("advertiser")}
+      >
+        <AdvertiserFilter
+          advertisers={options.advertisers}
+          selectedIds={advertisers}
+          onSelectionChange={(ids) => update({ advertisers: ids })}
+        />
+      </FilterSection>
 
       {/* Ad Format (multiselect) */}
-      <div>
-        <h3 className="text-xs font-medium text-muted-foreground mb-2">
-          Ad Format
-        </h3>
+      <FilterSection
+        id="format"
+        title="Ad Format"
+        open={isSectionOpen("format")}
+        onToggle={() => toggleSection("format")}
+      >
         <div className="space-y-1.5 max-h-40 overflow-y-auto">
           {options.formats.map((f) => (
             <label key={f.format} className="flex items-center gap-2 text-sm cursor-pointer">
@@ -243,13 +345,15 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
             </label>
           ))}
         </div>
-      </div>
+      </FilterSection>
 
       {/* Promoted by (placeholder – no backend yet) */}
-      <div>
-        <h3 className="text-xs font-medium text-muted-foreground mb-2">
-          Promoted by
-        </h3>
+      <FilterSection
+        id="promotedBy"
+        title="Promoted by"
+        open={isSectionOpen("promotedBy")}
+        onToggle={() => toggleSection("promotedBy")}
+      >
         <p className="text-xs text-muted-foreground mb-2">
           Coming soon (data not yet in Apify).
         </p>
@@ -261,13 +365,15 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
             </label>
           ))}
         </div>
-      </div>
+      </FilterSection>
 
       {/* Status */}
-      <div>
-        <h3 className="text-xs font-medium text-muted-foreground mb-2">
-          Status
-        </h3>
+      <FilterSection
+        id="status"
+        title="Status"
+        open={isSectionOpen("status")}
+        onToggle={() => toggleSection("status")}
+      >
         <div className="flex gap-2">
           {(["", "active", "stopped"] as const).map((s) => (
             <button
@@ -282,13 +388,15 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
             </button>
           ))}
         </div>
-      </div>
+      </FilterSection>
 
       {/* Min. Est. Impressions */}
-      <div>
-        <h3 className="text-xs font-medium text-muted-foreground mb-2">
-          Min. Est. Impressions
-        </h3>
+      <FilterSection
+        id="minImpressions"
+        title="Min. Est. Impressions"
+        open={isSectionOpen("minImpressions")}
+        onToggle={() => toggleSection("minImpressions")}
+      >
         <input
           type="number"
           min={0}
@@ -299,13 +407,15 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
           placeholder="e.g. 1000"
           className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         />
-      </div>
+      </FilterSection>
 
       {/* Country (multiselect) */}
-      <div>
-        <h3 className="text-xs font-medium text-muted-foreground mb-2">
-          Country
-        </h3>
+      <FilterSection
+        id="country"
+        title="Country"
+        open={isSectionOpen("country")}
+        onToggle={() => toggleSection("country")}
+      >
         <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
           {options.countries.map((c) => (
             <button
@@ -323,13 +433,15 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
             <span className="text-xs text-muted-foreground">None</span>
           )}
         </div>
-      </div>
+      </FilterSection>
 
       {/* Language (multiselect) */}
-      <div>
-        <h3 className="text-xs font-medium text-muted-foreground mb-2">
-          Language
-        </h3>
+      <FilterSection
+        id="language"
+        title="Language"
+        open={isSectionOpen("language")}
+        onToggle={() => toggleSection("language")}
+      >
         <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
           {options.languages.map((lang) => (
             <button
@@ -347,13 +459,15 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
             <span className="text-xs text-muted-foreground">None</span>
           )}
         </div>
-      </div>
+      </FilterSection>
 
       {/* Daterange */}
-      <div>
-        <h3 className="text-xs font-medium text-muted-foreground mb-2">
-          Date range (ads running in period)
-        </h3>
+      <FilterSection
+        id="dateRange"
+        title="Date range (ads running in period)"
+        open={isSectionOpen("dateRange")}
+        onToggle={() => toggleSection("dateRange")}
+      >
         <div className="space-y-2">
           <input
             type="date"
@@ -368,13 +482,15 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
             className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
           />
         </div>
-      </div>
+      </FilterSection>
 
       {/* CTA (multiselect) */}
-      <div>
-        <h3 className="text-xs font-medium text-muted-foreground mb-2">
-          CTA
-        </h3>
+      <FilterSection
+        id="cta"
+        title="CTA"
+        open={isSectionOpen("cta")}
+        onToggle={() => toggleSection("cta")}
+      >
         <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
           {options.ctas.map((cta) => (
             <button
@@ -392,7 +508,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
             <span className="text-xs text-muted-foreground">None</span>
           )}
         </div>
-      </div>
+      </FilterSection>
     </aside>
   );
 }
