@@ -140,6 +140,8 @@ export function ExploreSearchSort({
       next.delete("startDate");
       next.delete("endDate");
     }
+    // Reset to page 1 when date changes so we don't land on an invalid page (e.g. page 3 with fewer results)
+    if (next.get("page")) next.set("page", "1");
     setDateOpen(false);
     const q = next.toString();
     const target = q ? `/explore?${q}` : "/explore";
