@@ -378,20 +378,22 @@ export default async function ExplorePage({
 
                     {/* 4. Headline bar (headline left, CTA button right) – like LinkedIn Ads Library */}
                     {(ad.headline || ad.callToAction) && (
-                      <div className="border-t border-border bg-muted/30 px-3 py-2 flex items-center justify-between gap-2 min-h-[44px]">
+                      <div className="border-t border-border bg-muted/30 p-1.5 flex justify-between gap-2 items-start">
                         {ad.headline ? (
-                          <span className="text-sm font-semibold leading-[18px] text-foreground truncate min-w-0 flex-1">
-                            {ad.headline}
-                          </span>
+                          <header className="grow min-w-[40%] break-words">
+                            <h2 className="text-sm font-semibold leading-[18px] text-foreground break-words">
+                              {ad.headline}
+                            </h2>
+                          </header>
                         ) : (
-                          <span className="flex-1 min-w-0" />
+                          <span className="grow min-w-[40%]" />
                         )}
                         {ad.callToAction && (
                           <a
                             href={ad.destinationUrl ?? ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 no-underline"
+                            className="shrink-0 self-center rounded-md bg-transparent border border-black px-3 py-1.5 text-sm font-medium text-black hover:bg-black/5 no-underline break-words max-w-[150px]"
                           >
                             {ad.callToAction}
                           </a>
