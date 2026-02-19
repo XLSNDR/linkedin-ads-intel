@@ -111,21 +111,19 @@ export default async function ExplorePage({
   if (status === "active") whereConditions.push({ OR: [{ endDate: { gte: today } }, { endDate: null }] });
   if (status === "stopped") whereConditions.push({ endDate: { not: null, lt: today } });
   if (minImpressions != null && !Number.isNaN(minImpressions)) whereConditions.push({ impressionsEstimate: { gte: minImpressions } });
-  if (countries.length) {
-    whereConditions.push({
-      OR: countries.map((c) => ({
-        countryImpressionsEstimate: { path: [c], not: Prisma.JsonNull },
-      })),
-    });
-  }
+  // Country filter applied in memory below (Prisma JSON path filter can fail in serverless/Postgres)
   if (languages.length) whereConditions.push({ targetLanguage: { in: languages } });
   if (startDateParam && endDateParam) {
     const rangeStart = new Date(startDateParam);
     const rangeEnd = new Date(endDateParam);
-    whereConditions.push({
-      startDate: { lte: rangeEnd },
-      OR: [{ endDate: { gte: rangeStart } }, { endDate: null }],
-    });
+    const startValid = !Number.isNaN(rangeStart.getTime());
+    const endValid = !Number.isNaN(rangeEnd.getTime());
+    if (startValid && endValid) {
+      whereConditions.push({
+        startDate: { lte: rangeEnd },
+        OR: [{ endDate: { gte: rangeStart } }, { endDate: null }],
+      });
+    }
   }
   if (ctas.length) whereConditions.push({ callToAction: { in: ctas } });
   if (search) {
@@ -154,6 +152,14 @@ export default async function ExplorePage({
     orderBy,
     take: 500,
   });
+
+  if (countries.length > 0) {
+    ads = ads.filter((ad) => {
+      const est = ad.countryImpressionsEstimate as Record<string, unknown> | null;
+      if (!est || typeof est !== "object") return false;
+      return countries.some((c) => c in est);
+    });
+  }
 
   if (sort === "impressions") {
     const countryForSort = countries[0] ?? null;
