@@ -313,8 +313,8 @@ export default async function ExplorePage({
           </p>
         ) : (
           <>
-          {/* Grid constrained so each card is ~400px (LinkedIn Ads Library style); 1/2/3 cols */}
-          <ul className="grid gap-4 max-w-[400px] sm:max-w-[816px] lg:max-w-[1232px] sm:grid-cols-2 lg:grid-cols-3">
+          {/* Grid: fixed 400px columns (LinkedIn Ads Library style); ul shrinks to content so cards stay 400px */}
+          <ul className="grid gap-4 w-fit max-w-full mx-auto grid-cols-1 sm:grid-cols-[repeat(2,400px)] lg:grid-cols-[repeat(3,400px)]">
             {paginatedAds.map((ad) => {
               const advertiser = ad.advertiser;
               if (!advertiser) return null;
