@@ -68,11 +68,12 @@ export async function POST(request: Request) {
   }
 
   const logoByCompanyId = collectAdvertiserLogos(items);
+  const entries = Array.from(logoByCompanyId.entries());
   let advertisersUpdated = 0;
   let skippedNoMatch = 0;
   const errors: Array<{ linkedinCompanyId: string; error: string }> = [];
 
-  for (const [linkedinCompanyId, logoUrl] of logoByCompanyId) {
+  for (const [linkedinCompanyId, logoUrl] of entries) {
     try {
       const result = await prisma.advertiser.updateMany({
         where: { linkedinCompanyId },
