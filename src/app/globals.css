@@ -8,6 +8,14 @@
   }
 }
 
+/* Explore ad card: fixed 400px width (LinkedIn Ads Library style) - not dependent on Tailwind arbitrary values */
+@media (min-width: 640px) {
+  .explore-ad-card-item {
+    width: 400px;
+    min-width: 400px;
+  }
+}
+
 
 
 @layer base {

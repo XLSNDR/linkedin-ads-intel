@@ -313,18 +313,17 @@ export default async function ExplorePage({
           </p>
         ) : (
           <>
-          {/* Wrapper caps width so each card is 400px: 1 col=400px, 2 cols=816px, 3 cols=1232px */}
-          <div className="mx-auto w-full max-w-[400px] sm:max-w-[816px] lg:max-w-[1232px]">
-          <ul className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {/* LinkedIn-style: flex wrap + fixed 400px per item (like search-result-item max-w-[calc(33.33%-16px)] on a fixed-width container) */}
+          <ul className="flex flex-wrap gap-3 list-none p-0 m-0">
             {paginatedAds.map((ad) => {
               const advertiser = ad.advertiser;
               if (!advertiser) return null;
               return (
-              <li key={ad.id} className="flex justify-center">
-                <article
-                  className="w-full rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col"
-                  style={{ maxWidth: 400 }}
-                >
+              <li
+                key={ad.id}
+                className="explore-ad-card-item shrink-0 w-full min-w-0"
+              >
+                <article className="w-full rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col">
                   {/* 1. Header: logo + company + Promoted | Status + Save */}
                   <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-1">
                     <div className="flex items-center gap-2 min-w-0">
@@ -489,7 +488,6 @@ export default async function ExplorePage({
             );
             })}
           </ul>
-          </div>
 
           {totalCount > PAGE_SIZE && (() => {
             function exploreUrl(p: SearchParams, page: number): string {
