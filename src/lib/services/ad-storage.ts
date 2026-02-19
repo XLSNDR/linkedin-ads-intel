@@ -90,12 +90,17 @@ export async function storeAds(
     }
   }
 
-  // Update advertiser lastScrapedAt and totalAdsFound
+  // Update advertiser: lastScrapedAt, totalAdsFound, and logo from Apify advertiserLogo when present
+  const logoUrl =
+    ads.length > 0
+      ? (ads.map((a) => a.advertiserLogo).find((url): url is string => typeof url === "string" && url.trim() !== "") ?? null)
+      : null;
   await prisma.advertiser.update({
     where: { id: advertiserId },
     data: {
       lastScrapedAt: new Date(),
       totalAdsFound: ads.length,
+      ...(logoUrl != null && { logoUrl }),
     },
   });
 
