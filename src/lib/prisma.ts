@@ -13,7 +13,9 @@ if (!connectionString) {
 
 // Use Neon serverless driver (HTTP) for Neon DBs to avoid "MaxClientsInSessionMode" in serverless.
 // It does not hold Postgres connections, so pool limits don't apply.
+// On Vercel always use it (URL pattern can miss some Neon hostnames).
 const isNeon =
+  process.env.VERCEL === "1" ||
   /neon\.tech|\.neon\./i.test(connectionString) ||
   process.env.USE_NEON_SERVERLESS === "1";
 
