@@ -321,7 +321,10 @@ export default async function ExplorePage({
               if (!advertiser) return null;
               return (
               <li key={ad.id} className="flex justify-center">
-                <article className="w-full max-w-[400px] rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col">
+                <article
+                  className="w-full rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col"
+                  style={{ maxWidth: 400 }}
+                >
                   {/* 1. Header: logo + company + Promoted | Status + Save */}
                   <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-1">
                     <div className="flex items-center gap-2 min-w-0">
