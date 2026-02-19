@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 
 export interface FilterOptions {
-  advertisers: { id: string; name: string }[];
+  advertisers: { id: string; name: string; logoUrl: string | null }[];
   formats: { format: string; count: number }[];
   formatLabels: Record<string, string>;
   countries: string[];
@@ -16,6 +16,128 @@ const PROMOTED_BY_OPTIONS = [
   { value: "company", label: "Company page" },
   { value: "thought_leader", label: "Thought leader" },
 ];
+
+function AdvertiserFilter({
+  advertisers,
+  selectedIds,
+  onSelectionChange,
+}: {
+  advertisers: FilterOptions["advertisers"];
+  selectedIds: string[];
+  onSelectionChange: (ids: string[]) => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filtered = advertisers.filter(
+    (a) =>
+      !selectedIds.includes(a.id) &&
+      a.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+  );
+  const selectedAdvertisers = advertisers.filter((a) => selectedIds.includes(a.id));
+
+  const add = (id: string) => {
+    onSelectionChange([...selectedIds, id]);
+    setSearchQuery("");
+  };
+  const remove = (id: string) => {
+    onSelectionChange(selectedIds.filter((x) => x !== id));
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <h3 className="text-xs font-medium text-muted-foreground mb-2">
+        Advertiser
+      </h3>
+      <div className="relative">
+        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+        </span>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => setDropdownOpen(true)}
+          placeholder="Search for advertiser..."
+          className="w-full rounded-md border border-input bg-background py-2 pl-8 pr-3 text-sm"
+          aria-label="Search for advertiser"
+        />
+      </div>
+      {dropdownOpen && (
+        <ul
+          className="absolute z-10 mt-1 w-full rounded-md border border-border bg-popover shadow-md max-h-56 overflow-auto"
+          role="listbox"
+        >
+          {filtered.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-muted-foreground">No matches</li>
+          ) : (
+            filtered.map((a) => (
+              <li key={a.id} role="option" aria-selected="false">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/80 focus:bg-muted/80"
+                  onClick={() => add(a.id)}
+                >
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                    {a.logoUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={a.logoUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-xs font-bold text-muted-foreground">{a.name.charAt(0)}</span>
+                    )}
+                  </span>
+                  <span className="truncate">{a.name}</span>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+      {selectedAdvertisers.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selectedAdvertisers.map((a) => (
+            <span
+              key={a.id}
+              className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium"
+            >
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background">
+                {a.logoUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={a.logoUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-[10px] font-bold text-muted-foreground">{a.name.charAt(0)}</span>
+                )}
+              </span>
+              <span className="truncate max-w-[120px]">{a.name}</span>
+              <button
+                type="button"
+                onClick={() => remove(a.id)}
+                className="ml-0.5 -mr-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground"
+                aria-label={`Remove ${a.name}`}
+              >
+                <span aria-hidden>×</span>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function getParam(params: URLSearchParams, key: string): string[] {
   const v = params.get(key);
@@ -92,31 +214,12 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         )}
       </div>
 
-      {/* Advertiser (multiselect) */}
-      <div>
-        <h3 className="text-xs font-medium text-muted-foreground mb-2">
-          Advertiser
-        </h3>
-        <div className="flex flex-wrap gap-1.5">
-          {options.advertisers.map((a) => (
-            <button
-              key={a.id}
-              type="button"
-              onClick={() => toggleMulti("advertisers", advertisers, a.id)}
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                advertisers.includes(a.id)
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted hover:bg-muted/80"
-              }`}
-            >
-              {a.name}
-            </button>
-          ))}
-          {options.advertisers.length === 0 && (
-            <span className="text-xs text-muted-foreground">None</span>
-          )}
-        </div>
-      </div>
+      {/* Advertiser: search + dropdown + pills */}
+      <AdvertiserFilter
+        advertisers={options.advertisers}
+        selectedIds={advertisers}
+        onSelectionChange={(ids) => update({ advertisers: ids })}
+      />
 
       {/* Ad Format (multiselect) */}
       <div>

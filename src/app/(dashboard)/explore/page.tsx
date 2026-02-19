@@ -185,7 +185,7 @@ export default async function ExplorePage({
   const [advertisersWithAds, allFormats, adsForOptions] = await Promise.all([
     prisma.advertiser.findMany({
       where: { ads: { some: {} } },
-      select: { id: true, name: true },
+      select: { id: true, name: true, logoUrl: true },
       orderBy: { name: "asc" },
     }),
     prisma.ad.findMany({ select: { format: true } }),
