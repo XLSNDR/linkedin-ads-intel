@@ -52,7 +52,8 @@ function AdvertiserFilter({
     setSearchQuery("");
   };
   const remove = (id: string) => {
-    onSelectionChange(selectedIds.filter((x) => x !== id));
+    const next = selectedIds.filter((x) => x !== id);
+    onSelectionChange(next);
   };
 
   return (
@@ -173,7 +174,8 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         else if (v != null && v !== "") next.set(k, v);
         else next.delete(k);
       }
-      router.push(`/explore?${next.toString()}`);
+      const query = next.toString();
+      router.push(query ? `/explore?${query}` : "/explore");
     },
     [router, searchParams]
   );
