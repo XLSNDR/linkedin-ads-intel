@@ -6,6 +6,7 @@ import { AdCardSaveButton } from "./AdCardSaveButton";
 import { AdCardBodyText } from "./AdCardBodyText";
 import { DocumentAdPreview } from "./DocumentAdPreview";
 import { SpotlightAdPreview } from "./SpotlightAdPreview";
+import { VideoAdPreview } from "./VideoAdPreview";
 import { ExploreScrapingBanner } from "./ExploreScrapingBanner";
 import { getCountryFlag, parseCountryData } from "@/lib/country-flags";
 
@@ -408,6 +409,11 @@ export default async function ExplorePage({
                           mediaUrl={ad.mediaUrl}
                         />
                       </div>
+                    ) : ad.format?.toLowerCase() === "video" ? (
+                      <VideoAdPreview
+                        videoUrl={ad.mediaUrl}
+                        posterUrl={(ad.mediaData as { posterUrl?: string } | null)?.posterUrl}
+                      />
                     ) : ad.mediaUrl ? (
                       ad.destinationUrl ? (
                         <a
