@@ -413,6 +413,7 @@ export default async function ExplorePage({
                       <VideoAdPreview
                         videoUrl={ad.mediaUrl}
                         posterUrl={(ad.mediaData as { posterUrl?: string } | null)?.posterUrl}
+                        adLibraryUrl={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
                       />
                     ) : ad.mediaUrl ? (
                       ad.destinationUrl ? (

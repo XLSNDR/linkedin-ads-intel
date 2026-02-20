@@ -22,6 +22,8 @@ export interface ApifyAd {
   targeting?: { language?: string; location?: string };
   imageUrl?: string;
   videoUrl?: string;
+  /** Video thumbnail/poster image URL (e.g. from Apify or detail scraper) */
+  videoThumbnailUrl?: string;
   documentUrl?: string;
   imageUrls?: string[];
   slides?: Array<{ imageUrl: string }>;

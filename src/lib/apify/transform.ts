@@ -104,7 +104,9 @@ function getMediaData(raw: ApifyAd): object | null {
         imageUrls: raw.imageUrls ?? [],
       };
     case "VIDEO":
-      return raw.videoUrl ? { videoUrl: raw.videoUrl } : null;
+      return raw.videoUrl
+        ? { videoUrl: raw.videoUrl, posterUrl: raw.videoThumbnailUrl ?? null }
+        : null;
     case "SINGLE_IMAGE":
       return raw.imageUrl ? { imageUrl: raw.imageUrl } : null;
     case "SPOTLIGHT":
