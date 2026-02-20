@@ -83,7 +83,7 @@ function getCarouselSlides(raw: ApifyAd): Array<{ imageUrl: string; title?: stri
     return raw.slides.map((s) => ({ imageUrl: s.imageUrl, title: s.title }));
   }
   const out: Array<{ imageUrl: string; title?: string }> = [];
-  const rec = raw as Record<string, unknown>;
+  const rec = raw as unknown as Record<string, unknown>;
   for (let i = 0; ; i++) {
     const imageUrl = rec[`slides/${i}/imageUrl`];
     if (typeof imageUrl !== "string" || !imageUrl.trim()) break;
