@@ -87,6 +87,8 @@ function getMediaUrl(raw: ApifyAd): string | null {
       return raw.slides?.[0]?.imageUrl ?? null;
     case "DOCUMENT":
       return raw.imageUrls?.[0] ?? raw.documentUrl ?? null;
+    case "SPOTLIGHT":
+      return raw.imageUrl ?? null;
     default:
       return null;
   }
@@ -104,6 +106,8 @@ function getMediaData(raw: ApifyAd): object | null {
     case "VIDEO":
       return raw.videoUrl ? { videoUrl: raw.videoUrl } : null;
     case "SINGLE_IMAGE":
+      return raw.imageUrl ? { imageUrl: raw.imageUrl } : null;
+    case "SPOTLIGHT":
       return raw.imageUrl ? { imageUrl: raw.imageUrl } : null;
     default:
       return null;

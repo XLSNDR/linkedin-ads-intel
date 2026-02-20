@@ -5,6 +5,7 @@ import { ExploreSearchSort } from "./ExploreSearchSort";
 import { AdCardSaveButton } from "./AdCardSaveButton";
 import { AdCardBodyText } from "./AdCardBodyText";
 import { DocumentAdPreview } from "./DocumentAdPreview";
+import { SpotlightAdPreview } from "./SpotlightAdPreview";
 import { ExploreScrapingBanner } from "./ExploreScrapingBanner";
 import { getCountryFlag, parseCountryData } from "@/lib/country-flags";
 
@@ -354,14 +355,27 @@ export default async function ExplorePage({
                     </div>
                   </div>
 
-                  {/* 2. Intro text (above the creative) – truncate with see more */}
-                  <div className="px-3 py-1.5">
-                    <AdCardBodyText text={ad.bodyText || ad.headline || "—"} />
-                  </div>
+                  {/* 2. Intro text (above the creative) – skip for spotlight (intro is inside SpotlightAdPreview) */}
+                  {ad.format?.toLowerCase() !== "spotlight" && (
+                    <div className="px-3 py-1.5">
+                      <AdCardBodyText text={ad.bodyText || ad.headline || "—"} />
+                    </div>
+                  )}
 
-                  {/* 3. Main creative (image / video / document) – document: no link (swipe only); single image: link to CTA URL */}
+                  {/* 3. Main creative (spotlight / document / image / video) */}
                   <div className="border-t border-border mt-0">
-                    {ad.format?.toLowerCase() === "document" ? (
+                    {ad.format?.toLowerCase() === "spotlight" ? (
+                      <SpotlightAdPreview
+                        bodyText={ad.bodyText}
+                        headline={ad.headline}
+                        callToAction={ad.callToAction}
+                        destinationUrl={ad.destinationUrl}
+                        profileImageUrl={ad.mediaUrl}
+                        companyLogoUrl={advertiser.logoUrl}
+                        companyName={advertiser.name}
+                        adLibraryUrl={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
+                      />
+                    ) : ad.format?.toLowerCase() === "document" ? (
                       <div className="flex flex-col">
                         <DocumentAdPreview
                           mediaData={ad.mediaData}
@@ -397,8 +411,8 @@ export default async function ExplorePage({
                       )
                     ) : null}
 
-                    {/* 4. Headline bar (headline left, CTA button right) – like LinkedIn Ads Library */}
-                    {(ad.headline || ad.callToAction) && (
+                    {/* 4. Headline bar – skip for spotlight (headline + CTA are inside SpotlightAdPreview) */}
+                    {ad.format?.toLowerCase() !== "spotlight" && (ad.headline || ad.callToAction) && (
                       <div className="border-t border-border bg-muted/30 p-1.5 flex justify-between gap-2 items-start">
                         {ad.headline ? (
                           <header className="grow min-w-[40%] break-words">
