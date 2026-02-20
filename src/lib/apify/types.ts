@@ -33,6 +33,10 @@ export interface ApifyAd {
   senderName?: string;
   /** Message ad: sender profile image URL */
   senderImageUrl?: string;
+  /** Event ad: formatted date/time range (e.g. "March 6, 2025, 12:30 PM - March 6, 2025, 1:30 PM UTC") */
+  eventTimeDisplay?: string;
+  /** Event ad: event page URL (may differ from clickUrl) */
+  eventUrl?: string;
 }
 
 /** Apify run status values */

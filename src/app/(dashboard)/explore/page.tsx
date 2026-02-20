@@ -5,6 +5,7 @@ import { ExploreSearchSort } from "./ExploreSearchSort";
 import { AdCardSaveButton } from "./AdCardSaveButton";
 import { AdCardBodyText } from "./AdCardBodyText";
 import { DocumentAdPreview } from "./DocumentAdPreview";
+import { EventAdPreview } from "./EventAdPreview";
 import { MessageAdPreview } from "./MessageAdPreview";
 import { SpotlightAdPreview } from "./SpotlightAdPreview";
 import { VideoAdPreview } from "./VideoAdPreview";
@@ -42,6 +43,31 @@ function formatAdLaunchDate(date: Date | null | undefined): string {
     month: "short",
     year: "numeric",
   });
+}
+
+/** Format event time range from start/end dates (fallback when eventTimeDisplay not in data). */
+function formatEventTimeRange(
+  start: Date | null | undefined,
+  end: Date | null | undefined
+): string | null {
+  if (!start || typeof start.getTime !== "function" || Number.isNaN(start.getTime())) return null;
+  const startStr = start.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  if (!end || typeof end.getTime !== "function" || Number.isNaN(end.getTime()))
+    return startStr;
+  const endStr = end.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${startStr} - ${endStr}`;
 }
 
 /** Format a number as Est. Impressions with dot thousands separator (e.g. 25000 → "25.000"). */
@@ -434,6 +460,23 @@ export default async function ExplorePage({
                         adLibraryUrl={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
                         bannerImageUrl={ad.mediaUrl}
                       />
+                    ) : ad.format?.toLowerCase() === "event" ? (
+                      <EventAdPreview
+                        eventImageUrl={ad.mediaUrl}
+                        eventTitle={ad.headline}
+                        eventTimeDisplay={
+                          (ad.mediaData as { eventTimeDisplay?: string } | null)?.eventTimeDisplay ??
+                          formatEventTimeRange(ad.startDate, ad.endDate)
+                        }
+                        companyName={advertiser.name}
+                        isOnline={true}
+                        eventUrl={
+                          (ad.mediaData as { eventUrl?: string } | null)?.eventUrl ??
+                          ad.destinationUrl ??
+                          ad.adLibraryUrl ??
+                          `https://www.linkedin.com/ad-library/detail/${ad.externalId}`
+                        }
+                      />
                     ) : ad.mediaUrl ? (
                       ad.destinationUrl ? (
                         <a
@@ -463,8 +506,11 @@ export default async function ExplorePage({
                       )
                     ) : null}
 
-                    {/* 4. Headline bar – skip for spotlight and message (CTA/headline inside format block) */}
-                    {ad.format?.toLowerCase() !== "spotlight" && ad.format?.toLowerCase() !== "message" && (ad.headline || ad.callToAction) && (
+                    {/* 4. Headline bar – skip for spotlight, message, event (CTA/headline inside format block) */}
+                    {ad.format?.toLowerCase() !== "spotlight" &&
+                      ad.format?.toLowerCase() !== "message" &&
+                      ad.format?.toLowerCase() !== "event" &&
+                      (ad.headline || ad.callToAction) && (
                       <div className="border-t border-border bg-muted/30 p-1.5 flex justify-between gap-2 items-start">
                         {ad.headline ? (
                           <header className="grow min-w-[40%] break-words">

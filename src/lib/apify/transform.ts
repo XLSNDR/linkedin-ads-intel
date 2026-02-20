@@ -91,6 +91,8 @@ function getMediaUrl(raw: ApifyAd): string | null {
       return raw.imageUrl ?? null;
     case "MESSAGE":
       return raw.imageUrl ?? null;
+    case "EVENT":
+      return raw.imageUrl ?? null;
     default:
       return null;
   }
@@ -118,6 +120,12 @@ function getMediaData(raw: ApifyAd): object | null {
         imageUrl: raw.imageUrl ?? null,
         senderName: raw.senderName ?? null,
         senderImageUrl: raw.senderImageUrl ?? null,
+      };
+    case "EVENT":
+      return {
+        imageUrl: raw.imageUrl ?? null,
+        eventTimeDisplay: raw.eventTimeDisplay ?? null,
+        eventUrl: raw.eventUrl ?? null,
       };
     default:
       return null;
