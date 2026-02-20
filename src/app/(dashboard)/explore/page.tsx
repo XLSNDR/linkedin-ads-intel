@@ -4,6 +4,7 @@ import { ExploreFilters } from "./ExploreFilters";
 import { ExploreSearchSort } from "./ExploreSearchSort";
 import { AdCardSaveButton } from "./AdCardSaveButton";
 import { AdCardBodyText } from "./AdCardBodyText";
+import { DocumentAdPreview } from "./DocumentAdPreview";
 import { ExploreScrapingBanner } from "./ExploreScrapingBanner";
 import { getCountryFlag, parseCountryData } from "@/lib/country-flags";
 
@@ -358,7 +359,7 @@ export default async function ExplorePage({
                     <AdCardBodyText text={ad.bodyText || ad.headline || "—"} />
                   </div>
 
-                  {/* 3. Main creative (image / video thumbnail) */}
+                  {/* 3. Main creative (image / video / document) */}
                   <div className="border-t border-border mt-0">
                     <a
                       href={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
@@ -366,7 +367,12 @@ export default async function ExplorePage({
                       rel="noopener noreferrer"
                       className="flex flex-col hover:no-underline focus:no-underline"
                     >
-                      {ad.mediaUrl && (
+                      {ad.format?.toLowerCase() === "document" ? (
+                        <DocumentAdPreview
+                          mediaData={ad.mediaData}
+                          mediaUrl={ad.mediaUrl}
+                        />
+                      ) : ad.mediaUrl ? (
                         <div className="relative w-full min-h-[120px] bg-muted">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
@@ -375,7 +381,7 @@ export default async function ExplorePage({
                             className="w-full object-cover min-h-[120px]"
                           />
                         </div>
-                      )}
+                      ) : null}
                     </a>
 
                     {/* 4. Headline bar (headline left, CTA button right) – like LinkedIn Ads Library */}
