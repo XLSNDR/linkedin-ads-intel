@@ -112,6 +112,8 @@ function getMediaUrl(raw: ApifyAd): string | null {
       return raw.imageUrl ?? null;
     case "EVENT":
       return raw.imageUrl ?? null;
+    case "FOLLOW_COMPANY":
+      return raw.imageUrl ?? null;
     default:
       return null;
   }
@@ -133,6 +135,8 @@ function getMediaData(raw: ApifyAd): object | null {
     case "SINGLE_IMAGE":
       return raw.imageUrl ? { imageUrl: raw.imageUrl } : null;
     case "SPOTLIGHT":
+      return raw.imageUrl ? { imageUrl: raw.imageUrl } : null;
+    case "FOLLOW_COMPANY":
       return raw.imageUrl ? { imageUrl: raw.imageUrl } : null;
     case "MESSAGE":
       return {

@@ -7,6 +7,7 @@ import { AdCardBodyText } from "./AdCardBodyText";
 import { CarouselAdPreview } from "./CarouselAdPreview";
 import { DocumentAdPreview } from "./DocumentAdPreview";
 import { EventAdPreview } from "./EventAdPreview";
+import { FollowCompanyAdPreview } from "./FollowCompanyAdPreview";
 import { MessageAdPreview } from "./MessageAdPreview";
 import { SpotlightAdPreview } from "./SpotlightAdPreview";
 import { VideoAdPreview } from "./VideoAdPreview";
@@ -416,8 +417,10 @@ export default async function ExplorePage({
                     </div>
                   </div>
 
-                  {/* 2. Intro text – skip for spotlight and message (content is inside format-specific block) */}
-                  {ad.format?.toLowerCase() !== "spotlight" && ad.format?.toLowerCase() !== "message" && (
+                  {/* 2. Intro text – skip for spotlight, message, follow company (content is inside format-specific block) */}
+                  {ad.format?.toLowerCase() !== "spotlight" &&
+                    ad.format?.toLowerCase() !== "message" &&
+                    ad.format?.toLowerCase() !== "follow_company" && (
                     <div className="px-3 py-1.5">
                       <AdCardBodyText text={ad.bodyText || ad.headline || "—"} />
                     </div>
@@ -487,6 +490,17 @@ export default async function ExplorePage({
                         }
                         destinationUrl={ad.destinationUrl ?? null}
                       />
+                    ) : ad.format?.toLowerCase() === "follow_company" ? (
+                      <FollowCompanyAdPreview
+                        bodyText={ad.bodyText}
+                        headline={ad.headline}
+                        callToAction={ad.callToAction}
+                        destinationUrl={ad.destinationUrl ?? null}
+                        profileImageUrl={ad.mediaUrl}
+                        companyLogoUrl={advertiser.logoUrl}
+                        companyName={advertiser.name}
+                        companyUrl={ad.destinationUrl ?? null}
+                      />
                     ) : ad.mediaUrl ? (
                       ad.destinationUrl ? (
                         <a
@@ -516,11 +530,12 @@ export default async function ExplorePage({
                       )
                     ) : null}
 
-                    {/* 4. Headline bar – skip for spotlight, message, event, carousel (CTA/headline inside format block) */}
+                    {/* 4. Headline bar – skip for spotlight, message, event, carousel, follow company (CTA/headline inside format block) */}
                     {ad.format?.toLowerCase() !== "spotlight" &&
                       ad.format?.toLowerCase() !== "message" &&
                       ad.format?.toLowerCase() !== "event" &&
                       ad.format?.toLowerCase() !== "carousel" &&
+                      ad.format?.toLowerCase() !== "follow_company" &&
                       (ad.headline || ad.callToAction) && (
                       <div className="border-t border-border bg-muted/30 p-1.5 flex justify-between gap-2 items-start">
                         {ad.headline ? (
