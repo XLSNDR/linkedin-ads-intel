@@ -151,6 +151,10 @@ export async function scrapeAdDetail(page: Page): Promise<AdDetailData | null> {
       (await page.locator("img.ad-preview__dynamic-dimensions-image").first().getAttribute("src").catch(() => null)) ?? "";
     if (!imageUrl) {
       imageUrl =
+        (await page.locator("img[src*='event-background']").first().getAttribute("src").catch(() => null)) ?? "";
+    }
+    if (!imageUrl) {
+      imageUrl =
         (await page.locator("img[src*='ssu-carousel']").first().getAttribute("src").catch(() => null)) ?? "";
     }
     if (!imageUrl) {
