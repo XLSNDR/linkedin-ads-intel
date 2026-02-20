@@ -126,6 +126,8 @@ function impressionsToNumber(impressions: string | null): number {
 }
 
 const PAGE_SIZE = 50;
+/** Max ads to load from DB so pagination can show all (e.g. Text ads beyond first 500). Increase if needed. */
+const EXPLORE_MAX_ADS = 5000;
 
 type SearchParams = {
   sort?: string;
@@ -222,7 +224,7 @@ export default async function ExplorePage({
     where,
     include: { advertiser: true },
     orderBy,
-    take: 500,
+    take: EXPLORE_MAX_ADS,
   });
 
   // Fetch ads without format filter to build format option counts (so multi-select shows all formats)
@@ -235,7 +237,7 @@ export default async function ExplorePage({
         impressionsEstimate: true,
         impressions: true,
       },
-      take: 500,
+      take: EXPLORE_MAX_ADS,
     });
 
   if (countries.length > 0) {
