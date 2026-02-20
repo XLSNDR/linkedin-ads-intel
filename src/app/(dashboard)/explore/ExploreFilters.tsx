@@ -2,9 +2,15 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState, useRef, useEffect } from "react";
+import { AddAdvertiserModal } from "../advertisers/AddAdvertiserModal";
 
 export interface FilterOptions {
-  advertisers: { id: string; name: string; logoUrl: string | null }[];
+  advertisers: {
+    id: string;
+    name: string;
+    logoUrl: string | null;
+    status?: "following" | "added";
+  }[];
   formats: { format: string; count: number }[];
   formatLabels: Record<string, string>;
   countries: string[];
@@ -72,14 +78,18 @@ function FilterSection({
   );
 }
 
+const STATUS_ORDER = { following: 0, added: 1 } as const;
+
 function AdvertiserFilter({
   advertisers,
   selectedIds,
   onSelectionChange,
+  onAddNewClick,
 }: {
   advertisers: FilterOptions["advertisers"];
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
+  onAddNewClick?: () => void;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -95,11 +105,19 @@ function AdvertiserFilter({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filtered = advertisers.filter(
-    (a) =>
-      !selectedIds.includes(a.id) &&
-      a.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
-  );
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = advertisers
+    .filter(
+      (a) =>
+        !selectedIds.includes(a.id) &&
+        a.name.toLowerCase().includes(q)
+    )
+    .sort((a, b) => {
+      const orderA = a.status ? STATUS_ORDER[a.status] ?? 2 : 2;
+      const orderB = b.status ? STATUS_ORDER[b.status] ?? 2 : 2;
+      if (orderA !== orderB) return orderA - orderB;
+      return (a.name ?? "").localeCompare(b.name ?? "", undefined, { sensitivity: "base" });
+    });
   const selectedAdvertisers = advertisers.filter((a) => selectedIds.includes(a.id));
 
   const add = (id: string) => {
@@ -111,6 +129,20 @@ function AdvertiserFilter({
     const next = selectedIds.filter((x) => x !== id);
     onSelectionChange(next);
   };
+
+  function StatusDot({ status }: { status?: "following" | "added" }) {
+    if (!status) return null;
+    return (
+      <span
+        className="shrink-0 h-2 w-2 rounded-full"
+        title={status === "following" ? "Following" : "Added"}
+        aria-hidden
+        style={{
+          backgroundColor: status === "following" ? "var(--color-green-600, #16a34a)" : "var(--color-gray-400, #9ca3af)",
+        }}
+      />
+    );
+  }
 
   return (
     <div ref={containerRef} className="relative">
@@ -138,27 +170,42 @@ function AdvertiserFilter({
         >
           {filtered.length === 0 ? (
             <li className="px-3 py-2 text-sm text-muted-foreground">No matches</li>
-          ) : (
-            filtered.map((a) => (
-              <li key={a.id} role="option" aria-selected="false">
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/80 focus:bg-muted/80"
-                  onClick={() => add(a.id)}
-                >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-                    {a.logoUrl ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={a.logoUrl} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="text-xs font-bold text-muted-foreground">{a.name.charAt(0)}</span>
-                    )}
-                  </span>
-                  <span className="truncate">{a.name}</span>
-                </button>
-              </li>
-            ))
-          )}
+          ) : null}
+          {filtered.map((a) => (
+                <li key={a.id} role="option" aria-selected="false">
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/80 focus:bg-muted/80"
+                    onClick={() => add(a.id)}
+                  >
+                    <StatusDot status={a.status} />
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                      {a.logoUrl ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={a.logoUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="text-xs font-bold text-muted-foreground">{a.name.charAt(0)}</span>
+                      )}
+                    </span>
+                    <span className="truncate">{a.name}</span>
+                  </button>
+                </li>
+              ))}
+          {onAddNewClick ? (
+            <li className="border-t border-border mt-1 pt-1">
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-primary hover:bg-muted/80 focus:bg-muted/80 font-medium"
+                onClick={() => {
+                  onAddNewClick();
+                  setDropdownOpen(false);
+                }}
+              >
+                <span className="shrink-0">+</span>
+                <span>Add new advertiser</span>
+              </button>
+            </li>
+          ) : null}
         </ul>
       )}
       {selectedAdvertisers.length > 0 && (
@@ -523,6 +570,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [sectionOpen, setSectionOpen] = useState<Partial<Record<SectionId, boolean>>>({});
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   const safeOptions = {
     advertisers: options.advertisers ?? [],
@@ -624,6 +672,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
           advertisers={safeOptions.advertisers}
           selectedIds={advertisers}
           onSelectionChange={(ids) => update({ advertisers: ids })}
+          onAddNewClick={() => setAddModalOpen(true)}
         />
       </FilterSection>
 
@@ -751,6 +800,8 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
           ))}
         </div>
       </FilterSection>
+
+      <AddAdvertiserModal open={addModalOpen} onOpenChange={setAddModalOpen} />
     </aside>
   );
 }

@@ -29,6 +29,7 @@ export async function POST(
     select: {
       id: true,
       linkedinCompanyId: true,
+      linkedinUrl: true,
       name: true,
       startUrls: true,
       resultsLimit: true,
@@ -42,10 +43,11 @@ export async function POST(
     );
   }
 
-  const linkedinCompanyId = advertiser.linkedinCompanyId;
-  if (!linkedinCompanyId) {
+  const hasCompanyId = advertiser.linkedinCompanyId?.trim();
+  const hasCompanyUrl = advertiser.linkedinUrl?.trim();
+  if (!hasCompanyId && !hasCompanyUrl) {
     return NextResponse.json(
-      { error: "Advertiser has no linkedinCompanyId" },
+      { error: "Advertiser has no linkedinCompanyId or linkedinUrl" },
       { status: 400 }
     );
   }
@@ -63,9 +65,15 @@ export async function POST(
   }
 
   try {
+    const customUrls = (advertiser.startUrls as string[] | null) ?? undefined;
     const { runId, datasetId } = await startScrapeRun({
-      linkedinCompanyId,
-      startUrls: (advertiser.startUrls as string[] | null) ?? undefined,
+      ...(hasCompanyId && { linkedinCompanyId: advertiser.linkedinCompanyId! }),
+      startUrls:
+        customUrls?.length
+          ? customUrls
+          : hasCompanyUrl
+            ? [advertiser.linkedinUrl!]
+            : undefined,
       resultsLimit: advertiser.resultsLimit ?? undefined,
     });
 

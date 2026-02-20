@@ -5,7 +5,7 @@
 
 import type { PrismaClient } from "@prisma/client";
 import { getRunStatus, getDatasetItems } from "@/lib/apify/client";
-import { storeAds } from "./ad-storage";
+import { storeAds, type StoreAdsJobType } from "./ad-storage";
 
 export interface SyncResult {
   status: "running" | "completed" | "failed";
@@ -18,13 +18,18 @@ export interface SyncResult {
 
 export async function syncScrapeRun(
   prisma: PrismaClient,
-  scrapeRunId: string
+  scrapeRunId: string,
+  jobTypeParam: StoreAdsJobType = "initial"
 ): Promise<SyncResult | null> {
   const scrapeRun = await prisma.scrapeRun.findUnique({
     where: { id: scrapeRunId },
+    include: { advertiser: { select: { scrapeFrequency: true } } },
   });
 
   if (!scrapeRun?.apifyRunId) return null;
+
+  const jobType: StoreAdsJobType =
+    (scrapeRun.jobType as StoreAdsJobType) ?? jobTypeParam;
 
   const runId = scrapeRun.apifyRunId;
   let datasetId = scrapeRun.apifyDatasetId;
@@ -42,7 +47,7 @@ export async function syncScrapeRun(
   }
 
   const ads = await getDatasetItems(datasetId);
-  const result = await storeAds(prisma, ads, scrapeRun.advertiserId);
+  const result = await storeAds(prisma, ads, scrapeRun.advertiserId, jobType);
 
   const isComplete = ["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"].includes(
     apifyStatus
@@ -66,6 +71,28 @@ export async function syncScrapeRun(
       }),
     },
   });
+
+  if (
+    isComplete &&
+    apifyStatus === "SUCCEEDED" &&
+    jobType === "scheduled" &&
+    scrapeRun.advertiser
+  ) {
+    const next = new Date();
+    const freq = scrapeRun.advertiser.scrapeFrequency?.toLowerCase();
+    if (freq === "weekly") {
+      next.setDate(next.getDate() + 7);
+    } else if (freq === "monthly") {
+      next.setDate(next.getDate() + 30);
+    }
+    await prisma.advertiser.update({
+      where: { id: scrapeRun.advertiserId },
+      data: {
+        lastScrapedAt: new Date(),
+        ...(freq === "weekly" || freq === "monthly" ? { nextScrapeAt: next } : {}),
+      },
+    });
+  }
 
   return {
     status: isComplete

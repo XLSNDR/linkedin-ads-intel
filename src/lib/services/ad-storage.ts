@@ -37,6 +37,7 @@ export async function checkMonthlyBudget(
 }
 import type { ApifyAd } from "@/lib/apify/types";
 import { transformApifyAd } from "@/lib/apify/transform";
+import { extractCompanyIdFromAdvertiserUrl } from "@/lib/utils/linkedin-url";
 
 export interface StoreAdsResult {
   adsNew: number;
@@ -44,17 +45,21 @@ export interface StoreAdsResult {
   totalProcessed: number;
 }
 
+export type StoreAdsJobType = "initial" | "scheduled";
+
 export async function storeAds(
   prisma: PrismaClient,
   ads: ApifyAd[],
-  advertiserId: string
+  advertiserId: string,
+  jobType: StoreAdsJobType = "initial"
 ): Promise<StoreAdsResult> {
   let adsNew = 0;
   let adsUpdated = 0;
+  const isScheduled = jobType === "scheduled";
 
   for (const raw of ads) {
     const transformed = transformApifyAd(raw, advertiserId);
-    if (!transformed) continue; // skip items without valid externalId
+    if (!transformed) continue;
     const countryEst = transformed.countryImpressionsEstimate;
     const data = {
       ...transformed,
@@ -71,36 +76,73 @@ export async function storeAds(
       select: { id: true },
     });
 
-    await prisma.ad.upsert({
-      where: { externalId: data.externalId },
-      create: {
-        ...data,
-        firstSeenAt: new Date(),
-      },
-      update: {
-        ...data,
-        // Don't overwrite firstSeenAt on update
-      },
-    });
-
-    if (existing) {
+    if (isScheduled && existing) {
+      await prisma.ad.update({
+        where: { externalId: data.externalId },
+        data: {
+          endDate: data.endDate,
+          impressions: data.impressions,
+          impressionsPerCountry: data.impressionsPerCountry ?? undefined,
+          countryImpressionsEstimate:
+            countryEst && Object.keys(countryEst).length > 0
+              ? (countryEst as object)
+              : Prisma.JsonNull,
+          lastSeenAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
       adsUpdated++;
     } else {
-      adsNew++;
+      await prisma.ad.upsert({
+        where: { externalId: data.externalId },
+        create: {
+          ...data,
+          firstSeenAt: new Date(),
+        },
+        update: isScheduled
+          ? {
+              endDate: data.endDate,
+              impressions: data.impressions,
+              impressionsPerCountry: data.impressionsPerCountry ?? undefined,
+              countryImpressionsEstimate:
+                countryEst && Object.keys(countryEst).length > 0
+                  ? (countryEst as object)
+                  : Prisma.JsonNull,
+              lastSeenAt: new Date(),
+              updatedAt: new Date(),
+            }
+          : {
+              ...data,
+              firstSeenAt: undefined,
+            },
+      });
+      if (existing) adsUpdated++;
+      else adsNew++;
     }
   }
 
-  // Update advertiser: lastScrapedAt, totalAdsFound, and logo from Apify advertiserLogo when present
   const logoUrl =
     ads.length > 0
       ? (ads.map((a) => a.advertiserLogo).find((url): url is string => typeof url === "string" && url.trim() !== "") ?? null)
       : null;
+
+  const advertiser = await prisma.advertiser.findUnique({
+    where: { id: advertiserId },
+    select: { linkedinCompanyId: true },
+  });
+  const companyIdFromFirstAd =
+    ads.length > 0
+      ? extractCompanyIdFromAdvertiserUrl(ads[0].advertiserUrl)
+      : null;
+
   await prisma.advertiser.update({
     where: { id: advertiserId },
     data: {
       lastScrapedAt: new Date(),
       totalAdsFound: ads.length,
       ...(logoUrl != null && { logoUrl }),
+      ...(companyIdFromFirstAd != null &&
+        advertiser?.linkedinCompanyId == null && { linkedinCompanyId: companyIdFromFirstAd }),
     },
   });
 

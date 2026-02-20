@@ -1,8 +1,6 @@
 {
   "crons": [
-    {
-      "path": "/api/cron/sync-scrapes",
-      "schedule": "*/1 * * * *"
-    }
+    { "path": "/api/cron/sync-scrapes", "schedule": "*/1 * * * *" },
+    { "path": "/api/cron/scrape-due-advertisers", "schedule": "0 2 * * *" }
   ]
 }

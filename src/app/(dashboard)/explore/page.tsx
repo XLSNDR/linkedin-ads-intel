@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
 import { Prisma, prisma } from "@/lib/prisma";
 import { ExploreFilters } from "./ExploreFilters";
 import { ExploreSearchSort } from "./ExploreSearchSort";
@@ -13,6 +14,7 @@ import { MessageAdPreview } from "./MessageAdPreview";
 import { SpotlightAdPreview } from "./SpotlightAdPreview";
 import { VideoAdPreview } from "./VideoAdPreview";
 import { ExploreScrapingBanner } from "./ExploreScrapingBanner";
+import { ExploreFollowBanner } from "./ExploreFollowBanner";
 import { getCountryFlag, parseCountryData } from "@/lib/country-flags";
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -155,8 +157,39 @@ export default async function ExplorePage({
 }) {
   try {
   const params = await searchParams;
+  const { userId: clerkId } = await auth();
+  const dbUser = clerkId
+    ? await prisma.user.findUnique({ where: { clerkId }, select: { id: true } })
+    : null;
+  const userAdvertisers = dbUser
+    ? await prisma.userAdvertiser.findMany({
+        where: { userId: dbUser.id },
+        select: { advertiserId: true, status: true },
+      })
+    : [];
+  const userAdvertiserStatusMap = new Map<string, "following" | "added">();
+  for (const ua of userAdvertisers) {
+    if (ua.status === "following" || ua.status === "added") {
+      userAdvertiserStatusMap.set(ua.advertiserId, ua.status);
+    }
+  }
+
   const sort = params.sort ?? "date";
   const advertiserIds = params.advertisers?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+
+  const singleSelectedLink =
+    dbUser && advertiserIds.length === 1
+      ? await prisma.userAdvertiser.findUnique({
+          where: {
+            userId: dbUser.id,
+            advertiserId: advertiserIds[0],
+          },
+          include: { advertiser: true },
+        })
+      : null;
+  const showFollowBanner =
+    singleSelectedLink?.status === "added" &&
+    singleSelectedLink.advertiser != null;
   const formats = params.formats?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
   const minImpressions = params.minImpressions?.trim() ? parseInt(params.minImpressions, 10) : null;
   const countries = params.countries?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
@@ -305,7 +338,10 @@ export default async function ExplorePage({
   const paginatedAds = ads.slice(start, start + PAGE_SIZE);
 
   // Filter options for sidebar – advertisers/countries/languages/ctas from filtered ads; formats from ads without format filter (so multi-select shows all formats)
-  const advertiserMap = new Map<string, { id: string; name: string; logoUrl: string | null }>();
+  const advertiserMap = new Map<
+    string,
+    { id: string; name: string; logoUrl: string | null; status?: "following" | "added" }
+  >();
   const formatCountMap: Record<string, number> = {};
   const countrySet = new Set<string>();
   const languageSet = new Set<string>();
@@ -320,10 +356,12 @@ export default async function ExplorePage({
   for (const ad of ads) {
     if (ad.advertiser) {
       if (!advertiserMap.has(ad.advertiser.id)) {
+        const status = userAdvertiserStatusMap.get(ad.advertiser.id);
         advertiserMap.set(ad.advertiser.id, {
           id: ad.advertiser.id,
           name: ad.advertiser.name ?? "—",
           logoUrl: ad.advertiser.logoUrl,
+          ...(status && { status }),
         });
       }
     }
@@ -363,6 +401,12 @@ export default async function ExplorePage({
       <ExploreFilters options={filterOptions} />
       <main className="flex-1 min-w-0 px-6 py-8">
         <ExploreScrapingBanner />
+        {showFollowBanner && singleSelectedLink && (
+          <ExploreFollowBanner
+            userAdvertiserId={singleSelectedLink.id}
+            advertiserName={singleSelectedLink.advertiser.name ?? "—"}
+          />
+        )}
         <div className="flex flex-col gap-4 mb-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h1 className="text-2xl font-semibold">Explore Ads</h1>
@@ -375,10 +419,21 @@ export default async function ExplorePage({
           <ExploreSearchSort sort={sort} hasCountryFilter={countries.length > 0} />
         </div>
 
-        {paginatedAds.length === 0 ? (
+        {userAdvertisers.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card p-8 text-center">
+            <p className="text-muted-foreground mb-4">
+              You haven&apos;t added any advertisers yet. Add a LinkedIn company to explore their ads.
+            </p>
+            <Link
+              href="/advertisers"
+              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Add your first advertiser
+            </Link>
+          </div>
+        ) : paginatedAds.length === 0 ? (
           <p className="text-muted-foreground">
-            No ads yet. Add advertisers via the test scraper or Advertisers page
-            to see ads here.
+            No ads match your filters yet. Try changing filters or add more advertisers.
           </p>
         ) : (
           <>

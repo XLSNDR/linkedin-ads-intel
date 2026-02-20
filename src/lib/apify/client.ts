@@ -23,8 +23,9 @@ function authParams(): string {
 }
 
 export interface StartScrapeConfig {
-  linkedinCompanyId: string;
-  /** Optional: one or more fully-qualified LinkedIn Ads Library URLs to scrape instead of the default company search URL. */
+  /** Optional: numeric company ID for ad-library URL. Required when startUrls not provided. */
+  linkedinCompanyId?: string;
+  /** Optional: company page or ad-library URLs. When provided, passed directly to Apify (e.g. https://www.linkedin.com/company/simplicate/). */
   startUrls?: string[];
   /** Optional: max number of ads Apify should return. */
   resultsLimit?: number | null;
@@ -44,9 +45,13 @@ export async function startScrapeRun(
   if (hasCustomUrls) {
     input.startUrls = config.startUrls!.map((u) => ({ url: u }));
   } else {
+    const companyId = config.linkedinCompanyId;
+    if (!companyId) {
+      throw new Error("startScrapeRun: linkedinCompanyId or startUrls required");
+    }
     input.startUrls = [
       {
-        url: `https://www.linkedin.com/ad-library/search?companyIds=${config.linkedinCompanyId}`,
+        url: `https://www.linkedin.com/ad-library/search?companyIds=${companyId}`,
       },
     ];
   }

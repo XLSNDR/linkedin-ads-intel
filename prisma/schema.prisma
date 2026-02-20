@@ -23,7 +23,8 @@ model User {
   plan          Plan     @relation(fields: [planId], references: [id])
 
   // Overrides (null = use plan defaults)
-  maxActiveAdvertisers  Int?
+  maxAddedAdvertisers   Int?
+  maxFollowedAdvertisers Int?
   refreshFrequency      String? // "weekly" | "monthly"
   snapshotRetentionDays Int?
 
@@ -59,7 +60,8 @@ model Plan {
   priceYearly           Int      @default(0) // cents
 
   // Limits
-  maxActiveAdvertisers  Int
+  maxAddedAdvertisers   Int      // research (add) limit
+  maxFollowedAdvertisers Int     // follow (recurring) limit
   refreshFrequency      String   // "manual" | "weekly" | "monthly"
   maxCollections        Int      // -1 = unlimited
   snapshotRetentionDays Int      @default(90)
@@ -81,16 +83,19 @@ model Plan {
 model Advertiser {
   id                String   @id @default(cuid())
 
-  // LinkedIn data (Apify uses linkedinCompanyId from advertiserUrl)
+  // LinkedIn data — linkedinUrl is set at creation (Add flow); linkedinCompanyId from first Apify response
   name              String
-  linkedinCompanyId String   @unique // e.g. "2027242"
-  linkedinUrl       String?  // e.g. "https://www.linkedin.com/company/2027242"
+  linkedinCompanyId String?  @unique // numeric ID from Apify advertiserUrl after first scrape (e.g. "2027242")
+  linkedinUrl       String?  @unique // normalized company page URL (e.g. "https://www.linkedin.com/company/simplicate/")
   logoUrl           String?  // from Apify advertiserLogo field
 
   // Status and scraping
   status            String   @default("approved") // "pending" | "approved" | "rejected"
   lastScrapedAt     DateTime?
   totalAdsFound     Int      @default(0)
+  // Shared schedule (from highest-frequency follower)
+  scrapeFrequency   String?  // "weekly" | "monthly" | null
+  nextScrapeAt      DateTime?
   startUrls         Json?    // Optional: override default company search with one or more LinkedIn Ads Library URLs
   resultsLimit      Int?     // Optional: max number of ads to scrape per run (Apify results limit)
 
@@ -104,7 +109,9 @@ model Advertiser {
   updatedAt         DateTime @updatedAt
 
   @@index([linkedinCompanyId])
+  @@index([linkedinUrl])
   @@index([name])
+  @@index([scrapeFrequency, nextScrapeAt])
 }
 
 model UserAdvertiser {
@@ -116,8 +123,8 @@ model UserAdvertiser {
   advertiserId    String
   advertiser      Advertiser @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
 
-  // Status
-  status          String   @default("active") // "active" | "archived"
+  // Status: added = one-time only; following = recurring; archived = was following, paused
+  status          String   @default("added") // "added" | "following" | "archived"
 
   // Scraping
   firstTrackedAt  DateTime @default(now())
@@ -266,6 +273,9 @@ model ScrapeRun {
 
   apifyRunId      String?
   apifyDatasetId  String?
+
+  /** "initial" = one-time add; "scheduled" = recurring follow-up. Affects storeAds behaviour and Advertiser lastScrapedAt/nextScrapeAt. */
+  jobType         String?   // "initial" | "scheduled"
 
   status          String    @default("pending") // "pending" | "running" | "completed" | "failed"
   adsFound        Int       @default(0)

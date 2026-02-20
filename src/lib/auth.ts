@@ -45,7 +45,7 @@ export async function requireAdmin() {
 
 export async function checkPlanLimit(
   userId: string,
-  limit: "maxActiveAdvertisers" | "maxCollections"
+  limit: "maxAddedAdvertisers" | "maxFollowedAdvertisers" | "maxCollections"
 ) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -54,15 +54,23 @@ export async function checkPlanLimit(
 
   if (!user) return false;
 
-  if (limit === "maxActiveAdvertisers") {
-    const value = user.maxActiveAdvertisers ?? user.plan.maxActiveAdvertisers;
-    const activeCount = await prisma.userAdvertiser.count({
+  if (limit === "maxAddedAdvertisers") {
+    const value = user.maxAddedAdvertisers ?? user.plan.maxAddedAdvertisers;
+    const count = await prisma.userAdvertiser.count({
       where: {
         userId,
-        status: "active",
+        status: { in: ["added", "following"] },
       },
     });
-    return activeCount < value;
+    return count < value;
+  }
+
+  if (limit === "maxFollowedAdvertisers") {
+    const value = user.maxFollowedAdvertisers ?? user.plan.maxFollowedAdvertisers;
+    const count = await prisma.userAdvertiser.count({
+      where: { userId, status: "following" },
+    });
+    return count < value;
   }
 
   if (limit === "maxCollections") {
