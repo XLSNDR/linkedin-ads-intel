@@ -249,12 +249,18 @@ export default async function ExplorePage({
   }
   if (sort === "runtime") {
     ads = [...ads].sort((a, b) => {
-      const daysA = a.startDate && a.endDate
-        ? Math.round((a.endDate.getTime() - a.startDate.getTime()) / (24 * 60 * 60 * 1000))
-        : 0;
-      const daysB = b.startDate && b.endDate
-        ? Math.round((b.endDate.getTime() - b.startDate.getTime()) / (24 * 60 * 60 * 1000))
-        : 0;
+      const daysA =
+        a.startDate && a.lastSeenAt
+          ? Math.round(
+              (a.lastSeenAt.getTime() - a.startDate.getTime()) / (24 * 60 * 60 * 1000)
+            )
+          : 0;
+      const daysB =
+        b.startDate && b.lastSeenAt
+          ? Math.round(
+              (b.lastSeenAt.getTime() - b.startDate.getTime()) / (24 * 60 * 60 * 1000)
+            )
+          : 0;
       return daysB - daysA;
     });
   }
@@ -483,14 +489,18 @@ export default async function ExplorePage({
                     )}
                   </div>
 
-                  {/* 5. Runtime (line 1) + Start & Last Seen (line 2) */}
+                  {/* 5. Runtime (Start → Last Seen) + Start & Last Seen (line 2) */}
                   <div className="border-t border-border px-3 py-2 flex flex-col gap-1 text-xs text-muted-foreground">
                     {(() => {
-                      const runtimeDays = ad.startDate && ad.endDate
-                        ? Math.round((ad.endDate.getTime() - ad.startDate.getTime()) / (24 * 60 * 60 * 1000))
-                        : 0;
+                      const runtimeDays =
+                        ad.startDate && ad.lastSeenAt
+                          ? Math.round(
+                              (ad.lastSeenAt.getTime() - ad.startDate.getTime()) /
+                                (24 * 60 * 60 * 1000)
+                            )
+                          : 0;
                       return runtimeDays > 0 ? (
-                        <span className="flex items-center gap-1.5 font-bold text-foreground" title="Runtime">
+                        <span className="flex items-center gap-1.5 font-bold text-foreground" title="Runtime (from Start to Last Seen)">
                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                             <circle cx="12" cy="12" r="10" />
                             <polyline points="12 6 12 12 16 14" />
