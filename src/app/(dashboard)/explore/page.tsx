@@ -510,7 +510,8 @@ export default async function ExplorePage({
                         headline={ad.headline}
                         bodyText={ad.bodyText}
                         imageUrl={ad.mediaUrl}
-                        adLibraryUrl={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
+                        companyLogoUrl={advertiser.logoUrl}
+                        companyName={advertiser.name}
                       />
                     ) : ad.mediaUrl ? (
                       ad.destinationUrl ? (
