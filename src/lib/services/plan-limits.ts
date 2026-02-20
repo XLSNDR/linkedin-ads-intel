@@ -66,8 +66,6 @@ export async function canFollowAdvertiser(
   return { allowed: current < max, current, max };
 }
 
-const FREQUENCY_ORDER = { weekly: 3, monthly: 2, manual: 1 } as const;
-
 /** Recalculate shared Advertiser scrape schedule from all followers' effective frequency. */
 export async function recalculateAdvertiserSchedule(
   prisma: PrismaClient,
@@ -88,7 +86,7 @@ export async function recalculateAdvertiserSchedule(
 
   const effectiveFrequencies = followers.map((f) => {
     const freq = f.user.refreshFrequency ?? f.user.plan.refreshFrequency;
-    return (freq?.toLowerCase() ?? "manual") as keyof typeof FREQUENCY_ORDER;
+    return (freq?.toLowerCase() ?? "manual") as "weekly" | "monthly" | "manual";
   });
   const best = effectiveFrequencies.some((f) => f === "weekly")
     ? "weekly"
