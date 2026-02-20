@@ -26,7 +26,7 @@ export interface ApifyAd {
   videoThumbnailUrl?: string;
   documentUrl?: string;
   imageUrls?: string[];
-  slides?: Array<{ imageUrl: string }>;
+  slides?: Array<{ imageUrl: string; title?: string }>;
   impressionsPerCountry?: Array<{ country: string; impressions: string }>;
   startUrl?: string;
   /** Message ad: sender display name (thought leader) */

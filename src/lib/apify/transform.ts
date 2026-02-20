@@ -77,6 +77,25 @@ export function transformApifyAd(raw: ApifyAd, advertiserId: string): Transforme
   };
 }
 
+/** Build carousel slides from raw: nested raw.slides or flattened slides/0/imageUrl, slides/1/imageUrl, etc. */
+function getCarouselSlides(raw: ApifyAd): Array<{ imageUrl: string; title?: string }> {
+  if (Array.isArray(raw.slides) && raw.slides.length > 0) {
+    return raw.slides.map((s) => ({ imageUrl: s.imageUrl, title: s.title }));
+  }
+  const out: Array<{ imageUrl: string; title?: string }> = [];
+  const rec = raw as Record<string, unknown>;
+  for (let i = 0; ; i++) {
+    const imageUrl = rec[`slides/${i}/imageUrl`];
+    if (typeof imageUrl !== "string" || !imageUrl.trim()) break;
+    const title = rec[`slides/${i}/title`];
+    out.push({
+      imageUrl,
+      title: typeof title === "string" && title.trim() ? title : undefined,
+    });
+  }
+  return out;
+}
+
 function getMediaUrl(raw: ApifyAd): string | null {
   switch (raw.format) {
     case "SINGLE_IMAGE":
@@ -84,7 +103,7 @@ function getMediaUrl(raw: ApifyAd): string | null {
     case "VIDEO":
       return raw.videoUrl ?? null;
     case "CAROUSEL":
-      return raw.slides?.[0]?.imageUrl ?? null;
+      return getCarouselSlides(raw)[0]?.imageUrl ?? null;
     case "DOCUMENT":
       return raw.imageUrls?.[0] ?? raw.documentUrl ?? null;
     case "SPOTLIGHT":
@@ -101,7 +120,7 @@ function getMediaUrl(raw: ApifyAd): string | null {
 function getMediaData(raw: ApifyAd): object | null {
   switch (raw.format) {
     case "CAROUSEL":
-      return { slides: raw.slides ?? [] };
+      return { slides: getCarouselSlides(raw) };
     case "DOCUMENT":
       return {
         documentUrl: raw.documentUrl ?? null,

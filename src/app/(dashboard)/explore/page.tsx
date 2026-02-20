@@ -4,6 +4,7 @@ import { ExploreFilters } from "./ExploreFilters";
 import { ExploreSearchSort } from "./ExploreSearchSort";
 import { AdCardSaveButton } from "./AdCardSaveButton";
 import { AdCardBodyText } from "./AdCardBodyText";
+import { CarouselAdPreview } from "./CarouselAdPreview";
 import { DocumentAdPreview } from "./DocumentAdPreview";
 import { EventAdPreview } from "./EventAdPreview";
 import { MessageAdPreview } from "./MessageAdPreview";
@@ -477,6 +478,15 @@ export default async function ExplorePage({
                           `https://www.linkedin.com/ad-library/detail/${ad.externalId}`
                         }
                       />
+                    ) : ad.format?.toLowerCase() === "carousel" &&
+                      (ad.mediaData as { slides?: Array<{ imageUrl: string; title?: string }> } | null)?.slides
+                        ?.length ? (
+                      <CarouselAdPreview
+                        slides={
+                          (ad.mediaData as { slides: Array<{ imageUrl: string; title?: string }> }).slides
+                        }
+                        destinationUrl={ad.destinationUrl ?? null}
+                      />
                     ) : ad.mediaUrl ? (
                       ad.destinationUrl ? (
                         <a
@@ -506,10 +516,11 @@ export default async function ExplorePage({
                       )
                     ) : null}
 
-                    {/* 4. Headline bar – skip for spotlight, message, event (CTA/headline inside format block) */}
+                    {/* 4. Headline bar – skip for spotlight, message, event, carousel (CTA/headline inside format block) */}
                     {ad.format?.toLowerCase() !== "spotlight" &&
                       ad.format?.toLowerCase() !== "message" &&
                       ad.format?.toLowerCase() !== "event" &&
+                      ad.format?.toLowerCase() !== "carousel" &&
                       (ad.headline || ad.callToAction) && (
                       <div className="border-t border-border bg-muted/30 p-1.5 flex justify-between gap-2 items-start">
                         {ad.headline ? (

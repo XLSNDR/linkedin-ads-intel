@@ -53,10 +53,16 @@ async function main() {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   });
 
-  let updated = 0;
-  for (const ad of eventAds) {
+  const total = eventAds.length;
+  const updatedIds: string[] = [];
+  const noImageIds: string[] = [];
+  const errorIds: string[] = [];
+
+  for (let i = 0; i < eventAds.length; i++) {
+    const ad = eventAds[i];
+    const n = i + 1;
     const detailUrl = (ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`).trim();
-    console.log("Ads Library URL:", detailUrl, "(ad", ad.externalId, ")");
+    console.log(`\n[${n}/${total}] ${ad.externalId} — ${detailUrl}`);
 
     try {
       await page.goto(detailUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
@@ -64,26 +70,38 @@ async function main() {
       const imageUrl = detail?.imageUrl?.trim();
 
       if (imageUrl) {
-        console.log("  → Image:", imageUrl.slice(0, 80) + "...");
+        console.log(`  → Image found (${imageUrl.slice(0, 60)}...)`);
         if (!dryRun) {
           await prisma.ad.update({
             where: { id: ad.id },
             data: { mediaUrl: imageUrl },
           });
         }
-        updated++;
+        updatedIds.push(ad.externalId);
       } else {
         console.log("  → No image found in ad preview.");
+        noImageIds.push(ad.externalId);
       }
     } catch (err) {
       console.warn("  → Error:", (err as Error).message);
+      errorIds.push(ad.externalId);
     }
   }
 
   await browser.close();
   await prisma.$disconnect();
 
-  console.log(dryRun ? `[DRY RUN] Would update ${updated} ad(s).` : `Updated ${updated} ad(s).`);
+  console.log("\n--- Summary ---");
+  console.log(dryRun ? `[DRY RUN] Would update ${updatedIds.length} ad(s).` : `Updated: ${updatedIds.length} ad(s).`);
+  if (updatedIds.length > 0) {
+    console.log("  With image:", updatedIds.join(", "));
+  }
+  if (noImageIds.length > 0) {
+    console.log("  No image found:", noImageIds.join(", "));
+  }
+  if (errorIds.length > 0) {
+    console.log("  Errors:", errorIds.join(", "));
+  }
 }
 
 main().catch((err) => {
