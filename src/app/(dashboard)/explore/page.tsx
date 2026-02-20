@@ -143,35 +143,45 @@ export default async function ExplorePage({
 
   if (advertiserIds.length) whereConditions.push({ advertiserId: { in: advertiserIds } });
   if (formats.length) whereConditions.push({ format: { in: formats } });
-  // Country filter applied in memory below (Prisma JSON path filter can fail in serverless/Postgres)
-  if (languages.length) whereConditions.push({ targetLanguage: { in: languages } });
+  // For sidebar format options: same filters but WITHOUT format, so all formats stay selectable
+  const whereConditionsNoFormat: Prisma.AdWhereInput[] = [];
+  if (advertiserIds.length) whereConditionsNoFormat.push({ advertiserId: { in: advertiserIds } });
+  if (languages.length) whereConditionsNoFormat.push({ targetLanguage: { in: languages } });
   if (startDateParam && endDateParam) {
     const rangeStart = new Date(startDateParam);
     const rangeEnd = new Date(endDateParam);
     const startValid = !Number.isNaN(rangeStart.getTime());
     const endValid = !Number.isNaN(rangeEnd.getTime());
     if (startValid && endValid) {
-      whereConditions.push({
+      const dateCondition = {
         startDate: { lte: rangeEnd },
         OR: [{ endDate: { gte: rangeStart } }, { endDate: null }],
-      });
+      };
+      whereConditions.push(dateCondition);
+      whereConditionsNoFormat.push(dateCondition);
     }
   }
-  if (ctas.length) whereConditions.push({ callToAction: { in: ctas } });
+  if (ctas.length) {
+    whereConditions.push({ callToAction: { in: ctas } });
+    whereConditionsNoFormat.push({ callToAction: { in: ctas } });
+  }
   if (search) {
-    if (searchMode === "url") {
-      whereConditions.push({ destinationUrl: { contains: search, mode: "insensitive" } });
-    } else {
-      whereConditions.push({
-        OR: [
-          { bodyText: { contains: search, mode: "insensitive" } },
-          { headline: { contains: search, mode: "insensitive" } },
-        ],
-      });
-    }
+    const searchCondition =
+      searchMode === "url"
+        ? { destinationUrl: { contains: search, mode: "insensitive" as const } }
+        : {
+            OR: [
+              { bodyText: { contains: search, mode: "insensitive" as const } },
+              { headline: { contains: search, mode: "insensitive" as const } },
+            ],
+          };
+    whereConditions.push(searchCondition);
+    whereConditionsNoFormat.push(searchCondition);
   }
 
   const where: Prisma.AdWhereInput = whereConditions.length ? { AND: whereConditions } : {};
+  const whereNoFormat: Prisma.AdWhereInput =
+    whereConditionsNoFormat.length ? { AND: whereConditionsNoFormat } : {};
 
   const orderBy =
     sort === "runtime"
@@ -185,8 +195,26 @@ export default async function ExplorePage({
     take: 500,
   });
 
+  // Fetch ads without format filter to build format option counts (so multi-select shows all formats)
+  let adsForFormatOptions: { format: string | null; countryImpressionsEstimate: unknown; impressionsEstimate: number | null; impressions: string | null }[] =
+    await prisma.ad.findMany({
+      where: Object.keys(whereNoFormat).length > 0 ? whereNoFormat : undefined,
+      select: {
+        format: true,
+        countryImpressionsEstimate: true,
+        impressionsEstimate: true,
+        impressions: true,
+      },
+      take: 500,
+    });
+
   if (countries.length > 0) {
     ads = ads.filter((ad) => {
+      const est = ad.countryImpressionsEstimate as Record<string, unknown> | null;
+      if (!est || typeof est !== "object") return false;
+      return countries.some((c) => c in est);
+    });
+    adsForFormatOptions = adsForFormatOptions.filter((ad) => {
       const est = ad.countryImpressionsEstimate as Record<string, unknown> | null;
       if (!est || typeof est !== "object") return false;
       return countries.some((c) => c in est);
@@ -196,6 +224,10 @@ export default async function ExplorePage({
   // Apply Min. Est. Impressions filter in-memory using the same logic as display/sort
   if (minImpressions != null && !Number.isNaN(minImpressions)) {
     ads = ads.filter((ad) => {
+      const est = getAdEstImpressions(ad, countries, impressionsToNumber);
+      return est >= minImpressions;
+    });
+    adsForFormatOptions = adsForFormatOptions.filter((ad) => {
       const est = getAdEstImpressions(ad, countries, impressionsToNumber);
       return est >= minImpressions;
     });
@@ -231,15 +263,20 @@ export default async function ExplorePage({
   const start = (currentPage - 1) * PAGE_SIZE;
   const paginatedAds = ads.slice(start, start + PAGE_SIZE);
 
-  // Filter options for sidebar – derive from the ads we already fetched
+  // Filter options for sidebar – advertisers/countries/languages/ctas from filtered ads; formats from ads without format filter (so multi-select shows all formats)
   const advertiserMap = new Map<string, { id: string; name: string; logoUrl: string | null }>();
   const formatCountMap: Record<string, number> = {};
   const countrySet = new Set<string>();
   const languageSet = new Set<string>();
   const ctaSet = new Set<string>();
 
+  for (const ad of adsForFormatOptions) {
+    if (ad.format) {
+      formatCountMap[ad.format] = (formatCountMap[ad.format] ?? 0) + 1;
+    }
+  }
+
   for (const ad of ads) {
-    // Advertisers (unique by id, sorted by name later)
     if (ad.advertiser) {
       if (!advertiserMap.has(ad.advertiser.id)) {
         advertiserMap.set(ad.advertiser.id, {
@@ -249,24 +286,13 @@ export default async function ExplorePage({
         });
       }
     }
-
-    // Formats with counts
-    if (ad.format) {
-      formatCountMap[ad.format] = (formatCountMap[ad.format] ?? 0) + 1;
-    }
-
-    // Countries from countryImpressionsEstimate
     const countryObj = ad.countryImpressionsEstimate as Record<string, unknown> | null;
     if (countryObj && typeof countryObj === "object") {
       for (const key of Object.keys(countryObj)) {
         countrySet.add(key);
       }
     }
-
-    // Languages
     if (ad.targetLanguage) languageSet.add(ad.targetLanguage);
-
-    // CTAs
     if (ad.callToAction) ctaSet.add(ad.callToAction);
   }
 
