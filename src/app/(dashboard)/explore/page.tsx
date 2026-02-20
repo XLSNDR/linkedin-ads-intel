@@ -181,8 +181,10 @@ export default async function ExplorePage({
     dbUser && advertiserIds.length === 1
       ? await prisma.userAdvertiser.findUnique({
           where: {
-            userId: dbUser.id,
-            advertiserId: advertiserIds[0],
+            userId_advertiserId: {
+              userId: dbUser.id,
+              advertiserId: advertiserIds[0],
+            },
           },
           include: { advertiser: true },
         })
