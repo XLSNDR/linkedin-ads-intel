@@ -13,7 +13,8 @@ type Props = {
   destinationUrl: string | null;
 };
 
-const CARD_WIDTH = 280;
+const CARD_WIDTH = 220;
+const CARD_GAP = 6;
 
 export function CarouselAdPreview({ slides, destinationUrl }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -21,7 +22,7 @@ export function CarouselAdPreview({ slides, destinationUrl }: Props) {
   const scroll = (direction: "prev" | "next") => {
     const el = scrollRef.current;
     if (!el) return;
-    const step = CARD_WIDTH + 6; // card width + gap
+    const step = CARD_WIDTH + CARD_GAP;
     el.scrollBy({ left: direction === "prev" ? -step : step, behavior: "smooth" });
   };
 
@@ -64,12 +65,12 @@ export function CarouselAdPreview({ slides, destinationUrl }: Props) {
       {/* Slide list */}
       <div
         ref={scrollRef}
-        className="flex overflow-x-auto gap-1.5 pl-1.5 pr-1.5 scroll-smooth snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="flex overflow-x-auto gap-1.5 pl-1.5 pr-1.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         {slides.map((slide, i) => (
           <div
             key={i}
-            className="flex-shrink-0 w-[280px] snap-center rounded-md border border-border overflow-hidden bg-card"
+            className="flex-shrink-0 w-[220px] rounded-md border border-border overflow-hidden bg-card"
           >
             {hasLink ? (
               <a
