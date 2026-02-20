@@ -29,6 +29,10 @@ export interface ApifyAd {
   slides?: Array<{ imageUrl: string }>;
   impressionsPerCountry?: Array<{ country: string; impressions: string }>;
   startUrl?: string;
+  /** Message ad: sender display name (thought leader) */
+  senderName?: string;
+  /** Message ad: sender profile image URL */
+  senderImageUrl?: string;
 }
 
 /** Apify run status values */

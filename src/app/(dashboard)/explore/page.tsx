@@ -5,6 +5,7 @@ import { ExploreSearchSort } from "./ExploreSearchSort";
 import { AdCardSaveButton } from "./AdCardSaveButton";
 import { AdCardBodyText } from "./AdCardBodyText";
 import { DocumentAdPreview } from "./DocumentAdPreview";
+import { MessageAdPreview } from "./MessageAdPreview";
 import { SpotlightAdPreview } from "./SpotlightAdPreview";
 import { VideoAdPreview } from "./VideoAdPreview";
 import { ExploreScrapingBanner } from "./ExploreScrapingBanner";
@@ -382,8 +383,8 @@ export default async function ExplorePage({
                     </div>
                   </div>
 
-                  {/* 2. Intro text (above the creative) – skip for spotlight (intro is inside SpotlightAdPreview) */}
-                  {ad.format?.toLowerCase() !== "spotlight" && (
+                  {/* 2. Intro text – skip for spotlight and message (content is inside format-specific block) */}
+                  {ad.format?.toLowerCase() !== "spotlight" && ad.format?.toLowerCase() !== "message" && (
                     <div className="px-3 py-1.5">
                       <AdCardBodyText text={ad.bodyText || ad.headline || "—"} />
                     </div>
@@ -415,6 +416,18 @@ export default async function ExplorePage({
                         posterUrl={(ad.mediaData as { posterUrl?: string } | null)?.posterUrl}
                         adLibraryUrl={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
                       />
+                    ) : ad.format?.toLowerCase() === "message" ? (
+                      <MessageAdPreview
+                        bodyText={ad.bodyText}
+                        senderName={(ad.mediaData as { senderName?: string } | null)?.senderName ?? null}
+                        senderImageUrl={(ad.mediaData as { senderImageUrl?: string } | null)?.senderImageUrl ?? null}
+                        companyLogoUrl={advertiser.logoUrl}
+                        companyName={advertiser.name}
+                        callToAction={ad.callToAction}
+                        destinationUrl={ad.destinationUrl}
+                        adLibraryUrl={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
+                        bannerImageUrl={ad.mediaUrl}
+                      />
                     ) : ad.mediaUrl ? (
                       ad.destinationUrl ? (
                         <a
@@ -444,8 +457,8 @@ export default async function ExplorePage({
                       )
                     ) : null}
 
-                    {/* 4. Headline bar – skip for spotlight (headline + CTA are inside SpotlightAdPreview) */}
-                    {ad.format?.toLowerCase() !== "spotlight" && (ad.headline || ad.callToAction) && (
+                    {/* 4. Headline bar – skip for spotlight and message (CTA/headline inside format block) */}
+                    {ad.format?.toLowerCase() !== "spotlight" && ad.format?.toLowerCase() !== "message" && (ad.headline || ad.callToAction) && (
                       <div className="border-t border-border bg-muted/30 p-1.5 flex justify-between gap-2 items-start">
                         {ad.headline ? (
                           <header className="grow min-w-[40%] break-words">
