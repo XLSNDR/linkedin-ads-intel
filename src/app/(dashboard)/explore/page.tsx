@@ -359,20 +359,33 @@ export default async function ExplorePage({
                     <AdCardBodyText text={ad.bodyText || ad.headline || "—"} />
                   </div>
 
-                  {/* 3. Main creative (image / video / document) */}
+                  {/* 3. Main creative (image / video / document) – document: no link (swipe only); single image: link to CTA URL */}
                   <div className="border-t border-border mt-0">
-                    <a
-                      href={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex flex-col hover:no-underline focus:no-underline"
-                    >
-                      {ad.format?.toLowerCase() === "document" ? (
+                    {ad.format?.toLowerCase() === "document" ? (
+                      <div className="flex flex-col">
                         <DocumentAdPreview
                           mediaData={ad.mediaData}
                           mediaUrl={ad.mediaUrl}
                         />
-                      ) : ad.mediaUrl ? (
+                      </div>
+                    ) : ad.mediaUrl ? (
+                      ad.destinationUrl ? (
+                        <a
+                          href={ad.destinationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex flex-col hover:no-underline focus:no-underline"
+                        >
+                          <div className="relative w-full min-h-[120px] bg-muted">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={ad.mediaUrl}
+                              alt=""
+                              className="w-full object-cover min-h-[120px]"
+                            />
+                          </div>
+                        </a>
+                      ) : (
                         <div className="relative w-full min-h-[120px] bg-muted">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
@@ -381,8 +394,8 @@ export default async function ExplorePage({
                             className="w-full object-cover min-h-[120px]"
                           />
                         </div>
-                      ) : null}
-                    </a>
+                      )
+                    ) : null}
 
                     {/* 4. Headline bar (headline left, CTA button right) – like LinkedIn Ads Library */}
                     {(ad.headline || ad.callToAction) && (
