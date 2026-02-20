@@ -313,9 +313,9 @@ export default async function ExplorePage({
           </p>
         ) : (
           <>
-          {/* Wrapper caps content at 1224px so grid columns stay 400px (LinkedIn Ads Library ~400px per card) */}
-          <div className="w-full mx-auto" style={{ maxWidth: 1224 }}>
-          <ul className="explore-ads-list grid grid-cols-1 sm:grid-cols-3 gap-3 list-none p-0 m-0 w-full">
+          {/* Wrapper caps content so 4 columns fit; ~400px per column with gap */}
+          <div className="w-full mx-auto" style={{ maxWidth: 1636 }}>
+          <ul className="explore-ads-list grid grid-cols-1 sm:grid-cols-4 gap-3 list-none p-0 m-0 w-full">
             {paginatedAds.map((ad) => {
               const advertiser = ad.advertiser;
               if (!advertiser) return null;
