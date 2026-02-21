@@ -591,6 +591,8 @@ export default async function ExplorePage({
                         headline={ad.headline}
                         destinationUrl={ad.destinationUrl}
                         mediaUrl={ad.mediaUrl}
+                        companyLogoUrl={advertiser.logoUrl}
+                        companyName={advertiser.name}
                       />
                     ) : ad.mediaUrl ? (
                       ad.destinationUrl ? (
