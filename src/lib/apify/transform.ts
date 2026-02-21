@@ -120,6 +120,9 @@ function getMediaUrl(raw: ApifyAd): string | null {
     case "LINKEDIN_ARTICLE":
     case "SPONSORED_UPDATE_LINKEDIN_ARTICLE":
       return raw.imageUrl ?? null;
+    case "JOB":
+    case "JOBS_V2":
+      return raw.imageUrl ?? null;
     default:
       return null;
   }
@@ -160,6 +163,9 @@ function getMediaData(raw: ApifyAd): object | null {
       };
     case "LINKEDIN_ARTICLE":
     case "SPONSORED_UPDATE_LINKEDIN_ARTICLE":
+      return raw.imageUrl ? { imageUrl: raw.imageUrl } : null;
+    case "JOB":
+    case "JOBS_V2":
       return raw.imageUrl ? { imageUrl: raw.imageUrl } : null;
     default:
       return null;

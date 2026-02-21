@@ -15,6 +15,7 @@ import { MessageAdPreview } from "./MessageAdPreview";
 import { SpotlightAdPreview } from "./SpotlightAdPreview";
 import { VideoAdPreview } from "./VideoAdPreview";
 import { LinkedInArticleAdPreview } from "./LinkedInArticleAdPreview";
+import { JobAdPreview } from "./JobAdPreview";
 import { ExploreScrapingBanner } from "./ExploreScrapingBanner";
 import { ExploreFollowBanner } from "./ExploreFollowBanner";
 import { getCountryFlag, parseCountryData } from "@/lib/country-flags";
@@ -31,6 +32,10 @@ const FORMAT_LABELS: Record<string, string> = {
   FOLLOW_COMPANY: "Follow Company",
   LINKEDIN_ARTICLE: "Linkedin Article",
   SPONSORED_UPDATE_LINKEDIN_ARTICLE: "Linkedin Article",
+  JOB: "Job",
+  JOBS_V2: "Job",
+  job: "Job",
+  jobs_v2: "Job",
   single_image: "Single Image",
   linkedin_article: "Linkedin Article",
   video: "Video",
@@ -489,13 +494,15 @@ export default async function ExplorePage({
                     </div>
                   </div>
 
-                  {/* 2. Intro text – skip for spotlight, message, follow company, text, linkedin_article (content is inside format-specific block) */}
+                  {/* 2. Intro text – skip for spotlight, message, follow company, text, linkedin_article, job (content is inside format-specific block) */}
                   {ad.format?.toLowerCase() !== "spotlight" &&
                     ad.format?.toLowerCase() !== "message" &&
                     ad.format?.toLowerCase() !== "follow_company" &&
                     ad.format?.toLowerCase() !== "text" &&
                     ad.format?.toLowerCase() !== "linkedin_article" &&
-                    ad.format?.toLowerCase() !== "sponsored_update_linkedin_article" && (
+                    ad.format?.toLowerCase() !== "sponsored_update_linkedin_article" &&
+                    ad.format?.toLowerCase() !== "job" &&
+                    ad.format?.toLowerCase() !== "jobs_v2" && (
                     <div className="px-3 py-1.5">
                       <AdCardBodyText text={ad.bodyText || ad.headline || "—"} />
                     </div>
@@ -576,6 +583,15 @@ export default async function ExplorePage({
                         companyName={advertiser.name}
                         companyUrl={ad.destinationUrl ?? null}
                       />
+                    ) : ad.format?.toLowerCase() === "job" || ad.format?.toLowerCase() === "jobs_v2" ? (
+                      <JobAdPreview
+                        bodyText={ad.bodyText}
+                        headline={ad.headline}
+                        callToAction={ad.callToAction}
+                        destinationUrl={ad.destinationUrl ?? null}
+                        companyLogoUrl={advertiser.logoUrl}
+                        companyName={advertiser.name}
+                      />
                     ) : ad.format?.toLowerCase() === "text" ? (
                       <TextAdPreview
                         headline={ad.headline}
@@ -623,7 +639,7 @@ export default async function ExplorePage({
                       )
                     ) : null}
 
-                    {/* 4. Headline bar – skip for spotlight, message, event, carousel, follow company, text, linkedin_article (CTA/headline inside format block) */}
+                    {/* 4. Headline bar – skip for spotlight, message, event, carousel, follow company, text, linkedin_article, job (CTA/headline inside format block) */}
                     {ad.format?.toLowerCase() !== "spotlight" &&
                       ad.format?.toLowerCase() !== "message" &&
                       ad.format?.toLowerCase() !== "event" &&
@@ -632,6 +648,8 @@ export default async function ExplorePage({
                       ad.format?.toLowerCase() !== "text" &&
                       ad.format?.toLowerCase() !== "linkedin_article" &&
                       ad.format?.toLowerCase() !== "sponsored_update_linkedin_article" &&
+                      ad.format?.toLowerCase() !== "job" &&
+                      ad.format?.toLowerCase() !== "jobs_v2" &&
                       (ad.headline || ad.callToAction) && (
                       <div className="border-t border-border bg-muted/30 p-1.5 flex justify-between gap-2 items-start">
                         {ad.headline ? (
