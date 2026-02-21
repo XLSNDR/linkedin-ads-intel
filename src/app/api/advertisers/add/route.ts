@@ -121,18 +121,15 @@ export async function POST(req: Request) {
     });
   }
 
-  let advertiser = existingAdvertiser;
-  if (!advertiser) {
-    const slugOrId = pathSegment ?? "unknown";
-    advertiser = await prisma.advertiser.create({
-      data: {
-        name: slugOrId.charAt(0).toUpperCase() + slugOrId.slice(1).replace(/-/g, " "),
-        linkedinUrl: normalized,
-        linkedinCompanyId: isNumericId ? pathSegment : null,
-        status: "approved",
-      },
-    });
-  }
+  const slugOrId = pathSegment ?? "unknown";
+  const advertiser = await prisma.advertiser.create({
+    data: {
+      name: slugOrId.charAt(0).toUpperCase() + slugOrId.slice(1).replace(/-/g, " "),
+      linkedinUrl: normalized,
+      linkedinCompanyId: isNumericId ? pathSegment : null,
+      status: "approved",
+    },
+  });
 
   const userAdvertiser = await prisma.userAdvertiser.create({
     data: {
