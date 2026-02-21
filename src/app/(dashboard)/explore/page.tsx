@@ -149,6 +149,7 @@ type SearchParams = {
   minImpressions?: string;
   countries?: string;
   languages?: string;
+  promotedBy?: string;
   startDate?: string;
   endDate?: string;
   ctas?: string;
@@ -208,6 +209,7 @@ export default async function ExplorePage({
   const minImpressions = params.minImpressions?.trim() ? parseInt(params.minImpressions, 10) : null;
   const countries = params.countries?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
   const languages = params.languages?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  const promotedBy = params.promotedBy?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
   const startDateParam = params.startDate?.trim();
   const endDateParam = params.endDate?.trim();
   const ctas = params.ctas?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
@@ -224,7 +226,22 @@ export default async function ExplorePage({
   if (advertiserIds.length) whereConditions.push({ advertiserId: { in: advertiserIds } });
   if (formats.length) whereConditions.push({ format: { in: formats } });
   if (languages.length) whereConditions.push({ targetLanguage: { in: languages } });
-  // For sidebar format options: same filters but WITHOUT format, so all formats stay selectable
+  if (promotedBy.length === 1) {
+    if (promotedBy[0] === "thought_leader") {
+      whereConditions.push({ thoughtLeaderMemberImageUrl: { not: null } });
+    } else if (promotedBy[0] === "company_page") {
+      whereConditions.push({ thoughtLeaderMemberImageUrl: null });
+    }
+  } else if (promotedBy.length === 2 && promotedBy.includes("thought_leader") && promotedBy.includes("company_page")) {
+    // both selected = no filter
+  } else if (promotedBy.length > 0) {
+    if (promotedBy.includes("thought_leader") && !promotedBy.includes("company_page")) {
+      whereConditions.push({ thoughtLeaderMemberImageUrl: { not: null } });
+    } else if (promotedBy.includes("company_page") && !promotedBy.includes("thought_leader")) {
+      whereConditions.push({ thoughtLeaderMemberImageUrl: null });
+    }
+  }
+  // For sidebar format options + promoted by counts: same filters but WITHOUT format and WITHOUT promotedBy
   const whereConditionsNoFormat: Prisma.AdWhereInput[] = [];
   if (advertiserIds.length) whereConditionsNoFormat.push({ advertiserId: { in: advertiserIds } });
   if (languages.length) whereConditionsNoFormat.push({ targetLanguage: { in: languages } });
@@ -278,8 +295,8 @@ export default async function ExplorePage({
     take: EXPLORE_MAX_ADS,
   });
 
-  // Fetch ads without format filter to build format option counts (so multi-select shows all formats)
-  let adsForFormatOptions: { format: string | null; countryImpressionsEstimate: unknown; impressionsEstimate: number | null; impressions: string | null }[] =
+  // Fetch ads without format/promotedBy filter to build format option counts and promoted by counts
+  let adsForFormatOptions: { format: string | null; countryImpressionsEstimate: unknown; impressionsEstimate: number | null; impressions: string | null; thoughtLeaderMemberImageUrl: string | null }[] =
     await prisma.ad.findMany({
       where: Object.keys(whereNoFormat).length > 0 ? whereNoFormat : undefined,
       select: {
@@ -287,6 +304,7 @@ export default async function ExplorePage({
         countryImpressionsEstimate: true,
         impressionsEstimate: true,
         impressions: true,
+        thoughtLeaderMemberImageUrl: true,
       },
       take: EXPLORE_MAX_ADS,
     });
@@ -363,6 +381,8 @@ export default async function ExplorePage({
   const countrySet = new Set<string>();
   const languageSet = new Set<string>();
   const ctaSet = new Set<string>();
+  let promotedByThoughtLeader = 0;
+  let promotedByCompanyPage = 0;
 
   for (const ad of adsForFormatOptions) {
     if (ad.format) {
@@ -391,6 +411,13 @@ export default async function ExplorePage({
     if (ad.targetLanguage) languageSet.add(ad.targetLanguage);
     if (ad.callToAction) ctaSet.add(ad.callToAction);
   }
+  for (const ad of adsForFormatOptions) {
+    if (ad.thoughtLeaderMemberImageUrl && ad.thoughtLeaderMemberImageUrl.trim()) {
+      promotedByThoughtLeader++;
+    } else {
+      promotedByCompanyPage++;
+    }
+  }
 
   const advertisersWithAds = Array.from(advertiserMap.values()).sort((a, b) => {
     const an = (a.name ?? "").toLocaleLowerCase();
@@ -410,6 +437,7 @@ export default async function ExplorePage({
     formatLabels: FORMAT_LABELS,
     countries: countriesList,
     languages: languagesList,
+    promotedByCounts: { thought_leader: promotedByThoughtLeader, company_page: promotedByCompanyPage },
     ctas: ctasList,
   };
 
@@ -776,6 +804,7 @@ export default async function ExplorePage({
               if (p.minImpressions) q.set("minImpressions", p.minImpressions);
               if (p.countries) q.set("countries", p.countries);
               if (p.languages) q.set("languages", p.languages);
+              if (p.promotedBy) q.set("promotedBy", p.promotedBy);
               if (p.startDate) q.set("startDate", p.startDate);
               if (p.endDate) q.set("endDate", p.endDate);
               if (p.ctas) q.set("ctas", p.ctas);

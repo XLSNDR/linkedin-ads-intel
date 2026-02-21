@@ -30,6 +30,8 @@ export interface TransformedAd {
   targetLocation: string | null;
   paidBy: string | null;
   impressionsPerCountry: object | null;
+  thoughtLeaderMemberUrl: string | null;
+  thoughtLeaderMemberImageUrl: string | null;
   lastSeenAt: Date;
 }
 
@@ -74,6 +76,8 @@ export function transformApifyAd(raw: ApifyAd, advertiserId: string): Transforme
     targetLocation: raw.targeting?.location ?? null,
     paidBy: raw.paidBy ?? null,
     impressionsPerCountry: raw.impressionsPerCountry ?? null,
+    thoughtLeaderMemberUrl: raw.thoughtLeaderMemberUrl?.trim() ? raw.thoughtLeaderMemberUrl.trim() : null,
+    thoughtLeaderMemberImageUrl: raw.thoughtLeaderMemberImageUrl?.trim() ? raw.thoughtLeaderMemberImageUrl.trim() : null,
     lastSeenAt: new Date(),
   };
 }

@@ -178,6 +178,10 @@ model Ad {
   targetLanguage        String?
   targetLocation        String?
 
+  // Thought leader (when ad is promoted by a person; from Apify thoughtLeaderMemberUrl / thoughtLeaderMemberImageUrl)
+  thoughtLeaderMemberUrl        String?
+  thoughtLeaderMemberImageUrl   String?
+
   // Metadata
   paidBy                String?
   impressionsPerCountry Json?     // Array of { country, impressions } (raw from Apify)

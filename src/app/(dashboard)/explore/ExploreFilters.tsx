@@ -15,13 +15,14 @@ export interface FilterOptions {
   formatLabels: Record<string, string>;
   countries: string[];
   languages: string[];
+  promotedByCounts?: { thought_leader: number; company_page: number };
   ctas: string[];
 }
 
 const PROMOTED_BY_OPTIONS = [
-  { value: "company", label: "Company page" },
   { value: "thought_leader", label: "Thought leader" },
-];
+  { value: "company_page", label: "Company page" },
+] as const;
 
 const CHEVRON_DOWN = (
   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -577,6 +578,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
     formats: options.formats ?? [],
     countries: Array.isArray(options.countries) ? options.countries : [],
     languages: Array.isArray(options.languages) ? options.languages : [],
+    promotedByCounts: options.promotedByCounts ?? { thought_leader: 0, company_page: 0 },
     ctas: Array.isArray(options.ctas) ? options.ctas : [],
     formatLabels: options.formatLabels ?? {},
   };
@@ -770,6 +772,31 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         />
       </FilterSection>
 
+      {/* Promoted by: Thought leader (thoughtLeaderMemberImageUrl set) / Company page (blank) */}
+      <FilterSection
+        id="promotedBy"
+        title="Promoted by"
+        open={isSectionOpen("promotedBy")}
+        onToggle={() => toggleSection("promotedBy")}
+      >
+        <div className="space-y-1.5">
+          {PROMOTED_BY_OPTIONS.map((o) => {
+            const count = o.value === "thought_leader" ? safeOptions.promotedByCounts.thought_leader : safeOptions.promotedByCounts.company_page;
+            return (
+              <label key={o.value} className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={promotedBy.includes(o.value)}
+                  onChange={() => toggleMulti("promotedBy", promotedBy, o.value)}
+                  className="rounded border-input"
+                />
+                <span>{o.label} ({count})</span>
+              </label>
+            );
+          })}
+        </div>
+      </FilterSection>
+
       {/* CTA: search + dropdown + pills */}
       <FilterSection
         id="cta"
@@ -782,23 +809,6 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
           selected={ctas}
           onSelectionChange={(ids) => update({ ctas: ids })}
         />
-      </FilterSection>
-
-      {/* Promoted by (placeholder – no backend yet, keep at very bottom) */}
-      <FilterSection
-        id="promotedBy"
-        title="Promoted by"
-        open={isSectionOpen("promotedBy")}
-        onToggle={() => toggleSection("promotedBy")}
-      >
-        <div className="space-y-1.5">
-          {PROMOTED_BY_OPTIONS.map((o) => (
-            <label key={o.value} className="flex items-center gap-2 text-sm cursor-pointer opacity-60">
-              <input type="checkbox" disabled className="rounded border-input" />
-              <span>{o.label}</span>
-            </label>
-          ))}
-        </div>
       </FilterSection>
 
       <AddAdvertiserModal open={addModalOpen} onOpenChange={setAddModalOpen} />

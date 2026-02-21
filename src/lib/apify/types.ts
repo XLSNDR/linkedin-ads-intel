@@ -37,6 +37,10 @@ export interface ApifyAd {
   eventTimeDisplay?: string;
   /** Event ad: event page URL (may differ from clickUrl) */
   eventUrl?: string;
+  /** Thought leader / promoted-by: member profile URL */
+  thoughtLeaderMemberUrl?: string;
+  /** Thought leader / promoted-by: member profile image URL */
+  thoughtLeaderMemberImageUrl?: string;
 }
 
 /** Apify run status values */
