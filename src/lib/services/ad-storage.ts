@@ -121,30 +121,28 @@ export async function storeAds(
     }
   }
 
-  const logoUrl =
-    ads.length > 0
-      ? (ads.map((a) => a.advertiserLogo).find((url): url is string => typeof url === "string" && url.trim() !== "") ?? null)
-      : null;
+  // Only update Advertiser when we actually have ads (avoid overwriting with 0 when sync ran too early)
+  if (ads.length > 0) {
+    const logoUrl =
+      ads.map((a) => a.advertiserLogo).find((url): url is string => typeof url === "string" && url.trim() !== "") ?? null;
 
-  const advertiser = await prisma.advertiser.findUnique({
-    where: { id: advertiserId },
-    select: { linkedinCompanyId: true },
-  });
-  const companyIdFromFirstAd =
-    ads.length > 0
-      ? extractCompanyIdFromAdvertiserUrl(ads[0].advertiserUrl)
-      : null;
+    const advertiser = await prisma.advertiser.findUnique({
+      where: { id: advertiserId },
+      select: { linkedinCompanyId: true },
+    });
+    const companyIdFromFirstAd = extractCompanyIdFromAdvertiserUrl(ads[0].advertiserUrl);
 
-  await prisma.advertiser.update({
-    where: { id: advertiserId },
-    data: {
-      lastScrapedAt: new Date(),
-      totalAdsFound: ads.length,
-      ...(logoUrl != null && { logoUrl }),
-      ...(companyIdFromFirstAd != null &&
-        advertiser?.linkedinCompanyId == null && { linkedinCompanyId: companyIdFromFirstAd }),
-    },
-  });
+    await prisma.advertiser.update({
+      where: { id: advertiserId },
+      data: {
+        lastScrapedAt: new Date(),
+        totalAdsFound: ads.length,
+        ...(logoUrl != null && { logoUrl }),
+        ...(companyIdFromFirstAd != null &&
+          advertiser?.linkedinCompanyId == null && { linkedinCompanyId: companyIdFromFirstAd }),
+      },
+    });
+  }
 
   return {
     adsNew,

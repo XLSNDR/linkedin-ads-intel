@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const POLL_INTERVAL_MS = 10_000;
+const POLL_FAST_MS = 3_000;
+const FAST_POLL_DURATION_MS = 60_000;
 
 export function ExploreScrapingBanner() {
   const [active, setActive] = useState(false);
@@ -11,6 +13,7 @@ export function ExploreScrapingBanner() {
   const router = useRouter();
 
   useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval>;
     async function check() {
       try {
         const res = await fetch("/api/scrape/active");
@@ -27,8 +30,15 @@ export function ExploreScrapingBanner() {
     }
 
     check();
-    const interval = setInterval(check, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
+    intervalId = setInterval(check, POLL_FAST_MS);
+    const switchTimeout = setTimeout(() => {
+      clearInterval(intervalId);
+      intervalId = setInterval(check, POLL_INTERVAL_MS);
+    }, FAST_POLL_DURATION_MS);
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(switchTimeout);
+    };
   }, [router]);
 
   if (!active) return null;

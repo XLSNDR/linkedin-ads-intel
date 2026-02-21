@@ -254,7 +254,9 @@ export default async function ExplorePage({
   const orderBy =
     sort === "runtime"
       ? { startDate: "asc" as const }
-      : { lastSeenAt: "desc" as const };
+      : sort === "date"
+        ? { startDate: "desc" as const }
+        : { lastSeenAt: "desc" as const };
 
   let ads = await prisma.ad.findMany({
     where,
