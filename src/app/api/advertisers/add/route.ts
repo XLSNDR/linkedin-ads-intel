@@ -7,6 +7,7 @@ import { startScrapeRun } from "@/lib/apify/client";
 import {
   normalizeLinkedInCompanyUrl,
   getCompanyPathSegment,
+  normalizedUrlWithoutTrailingSlash,
 } from "@/lib/utils/linkedin-url";
 
 export const dynamic = "force-dynamic";
@@ -65,16 +66,18 @@ export async function POST(req: Request) {
 
   const pathSegment = getCompanyPathSegment(normalized);
   const isNumericId = pathSegment != null && /^\d+$/.test(pathSegment);
+  const normalizedNoSlash = normalizedUrlWithoutTrailingSlash(normalized);
+
+  const orConditions: Array<{ linkedinUrl?: string; linkedinCompanyId?: string; name?: { equals: string; mode: "insensitive" } }> = [
+    { linkedinUrl: normalized },
+    { linkedinUrl: normalizedNoSlash },
+  ];
+  if (isNumericId && pathSegment) orConditions.push({ linkedinCompanyId: pathSegment });
+  if (pathSegment && !isNumericId) orConditions.push({ name: { equals: pathSegment, mode: "insensitive" } });
 
   const existingAdvertiser = await prisma.advertiser.findFirst({
-    where: {
-      OR: [
-        { linkedinUrl: normalized },
-        ...(isNumericId && pathSegment
-          ? [{ linkedinCompanyId: pathSegment }]
-          : []),
-      ],
-    },
+    where: { OR: orConditions },
+    orderBy: { totalAdsFound: "desc" },
   });
 
   if (existingAdvertiser) {

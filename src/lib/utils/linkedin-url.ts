@@ -32,6 +32,11 @@ export function getCompanyPathSegment(normalizedUrl: string): string | null {
   return m ? m[1] : null;
 }
 
+/** Normalized URL without trailing slash (for flexible lookup). */
+export function normalizedUrlWithoutTrailingSlash(normalizedUrl: string): string {
+  return normalizedUrl.replace(/\/$/, "") || normalizedUrl;
+}
+
 /**
  * Extract numeric company ID from Apify advertiserUrl (e.g. https://www.linkedin.com/company/2027242).
  * Returns null if not numeric.

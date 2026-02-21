@@ -211,6 +211,7 @@ export default async function ExplorePage({
 
   if (advertiserIds.length) whereConditions.push({ advertiserId: { in: advertiserIds } });
   if (formats.length) whereConditions.push({ format: { in: formats } });
+  if (languages.length) whereConditions.push({ targetLanguage: { in: languages } });
   // For sidebar format options: same filters but WITHOUT format, so all formats stay selectable
   const whereConditionsNoFormat: Prisma.AdWhereInput[] = [];
   if (advertiserIds.length) whereConditionsNoFormat.push({ advertiserId: { in: advertiserIds } });

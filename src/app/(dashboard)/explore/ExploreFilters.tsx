@@ -745,7 +745,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
       {/* Country: search + dropdown + pills (same UX as Advertiser) */}
       <FilterSection
         id="country"
-        title="Country"
+        title="Target Country"
         open={isSectionOpen("country")}
         onToggle={() => toggleSection("country")}
       >
@@ -759,7 +759,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
       {/* Language: search + dropdown + pills */}
       <FilterSection
         id="language"
-        title="Language"
+        title="Target Language"
         open={isSectionOpen("language")}
         onToggle={() => toggleSection("language")}
       >
