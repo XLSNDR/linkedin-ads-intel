@@ -43,6 +43,7 @@ export async function GET(req: Request) {
           lastScrapedAt: true,
           scrapeFrequency: true,
           nextScrapeAt: true,
+          _count: { select: { ads: true } },
         },
       },
     },

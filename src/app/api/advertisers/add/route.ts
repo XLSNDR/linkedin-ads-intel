@@ -11,9 +11,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const FRESH_HOURS = 24;
-
-/** POST: Add advertiser (one-time scrape or link if fresh). */
+/** POST: Add advertiser (new = one-time scrape; existing = link only, no scrape). */
 export async function POST(req: Request) {
   let body: { linkedinUrl?: string };
   try {
@@ -99,34 +97,28 @@ export async function POST(req: Request) {
       );
     }
 
-    const hoursSince =
-      existingAdvertiser.lastScrapedAt != null
-        ? (Date.now() - existingAdvertiser.lastScrapedAt.getTime()) /
-          (1000 * 60 * 60)
-        : Infinity;
-    if (hoursSince < FRESH_HOURS) {
-      const userAdvertiser = await prisma.userAdvertiser.create({
-        data: {
-          userId: user.id,
-          advertiserId: existingAdvertiser.id,
-          status: "added",
-        },
-        include: { advertiser: true },
-      });
-      return NextResponse.json({
-        advertiser: {
-          id: existingAdvertiser.id,
-          name: existingAdvertiser.name,
-          logoUrl: existingAdvertiser.logoUrl,
-          totalAdsFound: existingAdvertiser.totalAdsFound,
-        },
-        userAdvertiser: {
-          id: userAdvertiser.id,
-          status: userAdvertiser.status,
-        },
-        scrapeStatus: "skipped",
-      });
-    }
+    // Advertiser already in DB (e.g. Simplicate): just link to your list, no scrape
+    const userAdvertiser = await prisma.userAdvertiser.create({
+      data: {
+        userId: user.id,
+        advertiserId: existingAdvertiser.id,
+        status: "added",
+      },
+      include: { advertiser: true },
+    });
+    return NextResponse.json({
+      advertiser: {
+        id: existingAdvertiser.id,
+        name: existingAdvertiser.name,
+        logoUrl: existingAdvertiser.logoUrl,
+        totalAdsFound: existingAdvertiser.totalAdsFound,
+      },
+      userAdvertiser: {
+        id: userAdvertiser.id,
+        status: userAdvertiser.status,
+      },
+      scrapeStatus: "skipped",
+    });
   }
 
   let advertiser = existingAdvertiser;
