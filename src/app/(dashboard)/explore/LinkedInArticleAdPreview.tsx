@@ -60,7 +60,7 @@ export function LinkedInArticleAdPreview({
 
   const footerBlock = (
     <div className="px-2 py-2 flex flex-col gap-1 bg-muted/50 rounded-b-md">
-      <span className="text-foreground font-semibold leading-[22px] text-base line-clamp-1 break-words">
+      <span className="text-foreground font-semibold text-xs leading-[16px] line-clamp-1 break-words">
         {articleTitle}
       </span>
       {excerpt && (
