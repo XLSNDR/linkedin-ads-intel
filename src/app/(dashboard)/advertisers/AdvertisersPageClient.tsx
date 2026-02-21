@@ -2,17 +2,23 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { AddAdvertiserModal } from "./AddAdvertiserModal";
 import {
   FollowConfirmModal,
   UnfollowConfirmModal,
   RemoveConfirmModal,
 } from "./ConfirmModals";
-
-type Tab = "following" | "added" | "archived";
+import {
+  Bell,
+  ChevronDown,
+  ChevronRight,
+  ListPlus,
+  Archive,
+  ExternalLink,
+  Trash2,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface AdvertiserInfo {
   id: string;
@@ -45,11 +51,39 @@ function formatDate(s: string | null): string {
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+const ACCORDION_SECTIONS = [
+  {
+    key: "following" as const,
+    label: "Following",
+    description: "Advertisers you follow get recurring ad updates on your plan’s schedule.",
+    icon: Bell,
+    defaultOpen: true,
+  },
+  {
+    key: "added" as const,
+    label: "All added",
+    description: "Every advertiser you’ve added. Follow any to get automatic updates.",
+    icon: ListPlus,
+    defaultOpen: true,
+  },
+  {
+    key: "archived" as const,
+    label: "Archived",
+    description: "Advertisers you’ve unfollowed. Their ads stay visible; you can re-follow anytime.",
+    icon: Archive,
+    defaultOpen: false,
+  },
+] as const;
+
 export function AdvertisersPageClient() {
-  const [tab, setTab] = useState<Tab>("following");
-  const [items, setItems] = useState<ListItem[]>([]);
+  const [allItems, setAllItems] = useState<ListItem[]>([]);
   const [limits, setLimits] = useState<Limits | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accordionOpen, setAccordionOpen] = useState<Record<string, boolean>>({
+    following: true,
+    added: true,
+    archived: false,
+  });
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [followModal, setFollowModal] = useState<{ open: boolean; item: ListItem | null }>({ open: false, item: null });
   const [unfollowModal, setUnfollowModal] = useState<{ open: boolean; item: ListItem | null }>({ open: false, item: null });
@@ -59,17 +93,10 @@ export function AdvertisersPageClient() {
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (tab === "following") params.set("status", "following");
-      else if (tab === "archived") params.set("status", "archived");
-      else {
-        params.append("status", "added");
-        params.append("status", "following");
-      }
-      const res = await fetch(`/api/advertisers/list?${params.toString()}`);
+      const res = await fetch("/api/advertisers/list");
       const data = await res.json();
       if (res.ok) {
-        setItems(data.advertisers ?? []);
+        setAllItems(data.advertisers ?? []);
         if (data.limits) {
           setLimits({
             maxAddedAdvertisers: data.limits.maxAddedAdvertisers,
@@ -82,11 +109,25 @@ export function AdvertisersPageClient() {
     } finally {
       setLoading(false);
     }
-  }, [tab]);
+  }, []);
 
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+  const followingItems = allItems.filter((i) => i.status === "following");
+  const addedItems = allItems.filter((i) => i.status === "added" || i.status === "following");
+  const archivedItems = allItems.filter((i) => i.status === "archived");
+
+  const getItemsForSection = (key: "following" | "added" | "archived") => {
+    if (key === "following") return followingItems;
+    if (key === "added") return addedItems;
+    return archivedItems;
+  };
+
+  const toggleAccordion = (key: string) => {
+    setAccordionOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   async function handleFollow() {
     const item = followModal.item;
@@ -144,12 +185,6 @@ export function AdvertisersPageClient() {
     );
   }
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "following", label: "Following" },
-    { key: "added", label: "All added" },
-    { key: "archived", label: "Archived" },
-  ];
-
   return (
     <div className="min-h-[calc(100vh-4rem)] font-[family-name:var(--font-geist-sans)]">
       <main className="max-w-6xl mx-auto px-6 py-8">
@@ -159,100 +194,118 @@ export function AdvertisersPageClient() {
         </div>
 
         {limits != null && (
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-sm text-muted-foreground mb-6">
             {limits.currentAdded} of {limits.maxAddedAdvertisers} added · {limits.currentFollowing} of {limits.maxFollowedAdvertisers} following
           </p>
         )}
 
-        <div className="flex gap-2 border-b border-border mb-6">
-          {tabs.map(({ key, label }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setTab(key)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                tab === key
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
         {loading ? (
           <p className="text-muted-foreground">Loading…</p>
-        ) : items.length === 0 ? (
-          <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
-            {tab === "following" && "No advertisers you’re following."}
-            {tab === "added" && "No advertisers in “All added” (only added, not following)."}
-            {tab === "archived" && "No archived advertisers."}
-          </div>
         ) : (
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((item) => (
-              <li key={item.id}>
-                <Card>
-                  <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                    {item.advertiser.logoUrl ? (
-                      <div className="relative h-10 w-10 rounded overflow-hidden shrink-0 bg-muted">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={item.advertiser.logoUrl}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="h-10 w-10 rounded bg-muted shrink-0 flex items-center justify-center text-lg font-semibold text-muted-foreground">
-                        {item.advertiser.name.charAt(0)}
-                      </div>
+          <div className="space-y-0 border border-border rounded-lg overflow-hidden">
+            {ACCORDION_SECTIONS.map(({ key, label, description, icon: Icon }) => {
+              const isOpen = accordionOpen[key] ?? (key === "archived" ? false : true);
+              const items = getItemsForSection(key);
+              return (
+                <div key={key} className="border-b border-border last:border-b-0">
+                  <button
+                    type="button"
+                    onClick={() => toggleAccordion(key)}
+                    className={cn(
+                      "flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors",
+                      isOpen && "bg-muted/30"
                     )}
+                    aria-expanded={isOpen}
+                  >
+                    <span className="text-muted-foreground shrink-0">
+                      {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </span>
+                    <Icon className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
                     <div className="min-w-0 flex-1">
-                      <CardTitle className="text-base font-semibold truncate">{item.advertiser.name}</CardTitle>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge variant={item.status === "following" ? "default" : "secondary"} className="text-xs">
-                          {item.status === "following" ? "Following" : item.status === "archived" ? "Archived" : "Added"}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {item.advertiser.totalAdsFound} ads · Last scraped {formatDate(item.advertiser.lastScrapedAt)}
-                        </span>
-                      </div>
+                      <span className="font-medium text-foreground">{label}</span>
+                      <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
                     </div>
-                  </CardHeader>
-                  <CardContent className="py-0 text-sm text-muted-foreground">
-                    {item.status === "following" && item.advertiser.nextScrapeAt && (
-                      <p>Next update: {formatDate(item.advertiser.nextScrapeAt)}</p>
-                    )}
-                  </CardContent>
-                  <CardFooter className="flex flex-wrap gap-2 pt-4">
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/explore?advertiser=${item.advertiser.id}`}>View ads</Link>
-                    </Button>
-                    {item.status === "added" && (
-                      <Button size="sm" onClick={() => setFollowModal({ open: true, item })}>
-                        Follow
-                      </Button>
-                    )}
-                    {item.status === "following" && (
-                      <Button size="sm" variant="secondary" onClick={() => setUnfollowModal({ open: true, item })}>
-                        Unfollow
-                      </Button>
-                    )}
-                    {item.status === "archived" && (
-                      <Button size="sm" onClick={() => setFollowModal({ open: true, item })}>
-                        Re-follow
-                      </Button>
-                    )}
-                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setRemoveModal({ open: true, item })}>
-                      Remove
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </li>
-            ))}
-          </ul>
+                    <span className="text-sm text-muted-foreground shrink-0">{items.length}</span>
+                  </button>
+                  {isOpen && (
+                    <div className="bg-background border-t border-border">
+                      {items.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                          {key === "following" && "No advertisers you’re following yet."}
+                          {key === "added" && "No advertisers added yet."}
+                          {key === "archived" && "No archived advertisers."}
+                        </div>
+                      ) : (
+                        <ul className="divide-y divide-border">
+                          {items.map((item) => (
+                            <li key={item.id} className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-muted/30">
+                              {item.advertiser.logoUrl ? (
+                                <div className="relative h-10 w-10 rounded overflow-hidden shrink-0 bg-muted">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={item.advertiser.logoUrl}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="h-10 w-10 rounded bg-muted shrink-0 flex items-center justify-center text-lg font-semibold text-muted-foreground">
+                                  {item.advertiser.name.charAt(0)}
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-foreground truncate">{item.advertiser.name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {item.advertiser.totalAdsFound.toLocaleString()} ads · Last scraped {formatDate(item.advertiser.lastScrapedAt)}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Button asChild variant="outline" size="sm">
+                                  <Link href={`/explore?advertiser=${item.advertiser.id}`}>
+                                    <ExternalLink className="h-4 w-4 mr-1.5" aria-hidden />
+                                    View ads
+                                  </Link>
+                                </Button>
+                                {item.status === "added" && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => setFollowModal({ open: true, item })}
+                                    title="Get recurring ad updates (weekly or monthly)"
+                                  >
+                                    <Bell className="h-4 w-4 mr-1.5" aria-hidden />
+                                    Follow
+                                  </Button>
+                                )}
+                                {item.status === "following" && (
+                                  <Button size="sm" variant="secondary" onClick={() => setUnfollowModal({ open: true, item })}>
+                                    Unfollow
+                                  </Button>
+                                )}
+                                {item.status === "archived" && (
+                                  <Button size="sm" onClick={() => setFollowModal({ open: true, item })}>
+                                    Re-follow
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => setRemoveModal({ open: true, item })}
+                                  title="Remove from your list"
+                                >
+                                  <Trash2 className="h-4 w-4" aria-label="Remove" />
+                                </Button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
 
         <AddAdvertiserModal open={addModalOpen} onOpenChange={setAddModalOpen} onAdded={fetchList} />
@@ -282,4 +335,3 @@ export function AdvertisersPageClient() {
     </div>
   );
 }
-
