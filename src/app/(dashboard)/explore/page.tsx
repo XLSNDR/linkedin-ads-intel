@@ -14,6 +14,7 @@ import { TextAdPreview } from "./TextAdPreview";
 import { MessageAdPreview } from "./MessageAdPreview";
 import { SpotlightAdPreview } from "./SpotlightAdPreview";
 import { VideoAdPreview } from "./VideoAdPreview";
+import { LinkedInArticleAdPreview } from "./LinkedInArticleAdPreview";
 import { ExploreScrapingBanner } from "./ExploreScrapingBanner";
 import { ExploreFollowBanner } from "./ExploreFollowBanner";
 import { getCountryFlag, parseCountryData } from "@/lib/country-flags";
@@ -28,7 +29,10 @@ const FORMAT_LABELS: Record<string, string> = {
   EVENT: "Event",
   SPOTLIGHT: "Spotlight",
   FOLLOW_COMPANY: "Follow Company",
+  LINKEDIN_ARTICLE: "Linkedin Article",
+  SPONSORED_UPDATE_LINKEDIN_ARTICLE: "Linkedin Article",
   single_image: "Single Image",
+  linkedin_article: "Linkedin Article",
   video: "Video",
   carousel: "Carousel",
   document: "Document",
@@ -485,11 +489,13 @@ export default async function ExplorePage({
                     </div>
                   </div>
 
-                  {/* 2. Intro text – skip for spotlight, message, follow company, text (content is inside format-specific block) */}
+                  {/* 2. Intro text – skip for spotlight, message, follow company, text, linkedin_article (content is inside format-specific block) */}
                   {ad.format?.toLowerCase() !== "spotlight" &&
                     ad.format?.toLowerCase() !== "message" &&
                     ad.format?.toLowerCase() !== "follow_company" &&
-                    ad.format?.toLowerCase() !== "text" && (
+                    ad.format?.toLowerCase() !== "text" &&
+                    ad.format?.toLowerCase() !== "linkedin_article" &&
+                    ad.format?.toLowerCase() !== "sponsored_update_linkedin_article" && (
                     <div className="px-3 py-1.5">
                       <AdCardBodyText text={ad.bodyText || ad.headline || "—"} />
                     </div>
@@ -578,6 +584,14 @@ export default async function ExplorePage({
                         companyLogoUrl={advertiser.logoUrl}
                         companyName={advertiser.name}
                       />
+                    ) : ad.format?.toLowerCase() === "linkedin_article" ||
+                      ad.format?.toLowerCase() === "sponsored_update_linkedin_article" ? (
+                      <LinkedInArticleAdPreview
+                        bodyText={ad.bodyText}
+                        headline={ad.headline}
+                        destinationUrl={ad.destinationUrl}
+                        mediaUrl={ad.mediaUrl}
+                      />
                     ) : ad.mediaUrl ? (
                       ad.destinationUrl ? (
                         <a
@@ -607,13 +621,15 @@ export default async function ExplorePage({
                       )
                     ) : null}
 
-                    {/* 4. Headline bar – skip for spotlight, message, event, carousel, follow company, text (CTA/headline inside format block) */}
+                    {/* 4. Headline bar – skip for spotlight, message, event, carousel, follow company, text, linkedin_article (CTA/headline inside format block) */}
                     {ad.format?.toLowerCase() !== "spotlight" &&
                       ad.format?.toLowerCase() !== "message" &&
                       ad.format?.toLowerCase() !== "event" &&
                       ad.format?.toLowerCase() !== "carousel" &&
                       ad.format?.toLowerCase() !== "follow_company" &&
                       ad.format?.toLowerCase() !== "text" &&
+                      ad.format?.toLowerCase() !== "linkedin_article" &&
+                      ad.format?.toLowerCase() !== "sponsored_update_linkedin_article" &&
                       (ad.headline || ad.callToAction) && (
                       <div className="border-t border-border bg-muted/30 p-1.5 flex justify-between gap-2 items-start">
                         {ad.headline ? (

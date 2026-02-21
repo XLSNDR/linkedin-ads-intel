@@ -117,6 +117,9 @@ function getMediaUrl(raw: ApifyAd): string | null {
       return raw.imageUrl ?? null;
     case "TEXT":
       return raw.imageUrl ?? null;
+    case "LINKEDIN_ARTICLE":
+    case "SPONSORED_UPDATE_LINKEDIN_ARTICLE":
+      return raw.imageUrl ?? null;
     default:
       return null;
   }
@@ -155,6 +158,9 @@ function getMediaData(raw: ApifyAd): object | null {
         eventTimeDisplay: raw.eventTimeDisplay ?? null,
         eventUrl: raw.eventUrl ?? null,
       };
+    case "LINKEDIN_ARTICLE":
+    case "SPONSORED_UPDATE_LINKEDIN_ARTICLE":
+      return raw.imageUrl ? { imageUrl: raw.imageUrl } : null;
     default:
       return null;
   }
