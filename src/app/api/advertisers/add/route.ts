@@ -165,6 +165,7 @@ export async function POST(req: Request) {
       data: {
         advertiserId: advertiser.id,
         status: "running",
+        jobType: "initial",
         apifyRunId: runId,
         apifyDatasetId: datasetId,
       },

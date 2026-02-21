@@ -33,11 +33,12 @@ export interface TransformedAd {
   lastSeenAt: Date;
 }
 
-/** Resolve external id (Apify actor may use id or adId) */
+/** Resolve external id (Apify actor may use id or adId; may be string or number) */
 function getExternalId(raw: ApifyAd): string | null {
   const id = raw.adId ?? raw.id;
-  if (id == null || typeof id !== "string" || id.trim() === "") return null;
-  return id.trim();
+  if (id == null) return null;
+  const s = typeof id === "string" ? id.trim() : String(id).trim();
+  return s === "" ? null : s;
 }
 
 export function transformApifyAd(raw: ApifyAd, advertiserId: string): TransformedAd | null {

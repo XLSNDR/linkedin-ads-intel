@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { Prisma, prisma } from "@/lib/prisma";
+import { syncAllRunningRuns } from "@/lib/services/sync-scrape-run";
 import { ExploreFilters } from "./ExploreFilters";
 import { ExploreSearchSort } from "./ExploreSearchSort";
 import { AdCardSaveButton } from "./AdCardSaveButton";
@@ -157,6 +158,8 @@ export default async function ExplorePage({
 }) {
   try {
   const params = await searchParams;
+  // Sync any running scrapes so new ads appear (does not rely on cron or client polling)
+  await syncAllRunningRuns(prisma);
   const { userId: clerkId } = await auth();
   const dbUser = clerkId
     ? await prisma.user.findUnique({ where: { clerkId }, select: { id: true } })
