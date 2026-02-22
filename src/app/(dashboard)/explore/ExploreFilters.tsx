@@ -567,7 +567,13 @@ type SectionId =
   | "language"
   | "cta";
 
-export function ExploreFilters({ options }: { options: FilterOptions }) {
+export function ExploreFilters({
+  options,
+  basePath = "/explore",
+}: {
+  options: FilterOptions;
+  basePath?: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [sectionOpen, setSectionOpen] = useState<Partial<Record<SectionId, boolean>>>({});
@@ -620,9 +626,9 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         else next.delete(k);
       }
       const query = next.toString();
-      router.push(query ? `/explore?${query}` : "/explore");
+      router.push(query ? `${basePath}?${query}` : basePath);
     },
-    [router, searchParams]
+    [router, searchParams, basePath]
   );
 
   const toggleMulti = (key: string, current: string[], value: string) => {
@@ -632,7 +638,7 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
     update({ [key]: next });
   };
 
-  const clearAll = () => router.push("/explore");
+  const clearAll = () => router.push(basePath);
 
   // Keep local min-impressions input in sync with URL (e.g. after Clear all or external nav)
   useEffect(() => {
@@ -685,22 +691,45 @@ export function ExploreFilters({ options }: { options: FilterOptions }) {
         open={isSectionOpen("format")}
         onToggle={() => toggleSection("format")}
       >
-        <div className="space-y-1.5 max-h-40 overflow-y-auto">
-          {[...safeOptions.formats]
-            .sort((a, b) => b.count - a.count)
-            .map((f) => (
-            <label key={f.format} className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formats.includes(f.format)}
-                onChange={() => toggleMulti("formats", formats, f.format)}
-                className="rounded border-input"
-              />
-              <span>
-                {safeOptions.formatLabels[f.format] ?? f.format} ({f.count})
-              </span>
-            </label>
-          ))}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() =>
+                update({
+                  formats: safeOptions.formats.map((f) => f.format),
+                })
+              }
+              className="text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Select all
+            </button>
+            <span className="text-muted-foreground/70">·</span>
+            <button
+              type="button"
+              onClick={() => update({ formats: [] })}
+              className="text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Clear all
+            </button>
+          </div>
+          <div className="space-y-1.5 max-h-40 overflow-y-auto">
+            {[...safeOptions.formats]
+              .sort((a, b) => b.count - a.count)
+              .map((f) => (
+              <label key={f.format} className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formats.includes(f.format)}
+                  onChange={() => toggleMulti("formats", formats, f.format)}
+                  className="rounded border-input"
+                />
+                <span>
+                  {safeOptions.formatLabels[f.format] ?? f.format} ({f.count})
+                </span>
+              </label>
+            ))}
+          </div>
         </div>
       </FilterSection>
 

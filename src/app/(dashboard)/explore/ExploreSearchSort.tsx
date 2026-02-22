@@ -57,9 +57,11 @@ function matchPreset(start: string, end: string): string {
 export function ExploreSearchSort({
   sort,
   hasCountryFilter,
+  basePath = "/explore",
 }: {
   sort: string;
   hasCountryFilter: boolean;
+  basePath?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -108,16 +110,16 @@ export function ExploreSearchSort({
       next.delete("search");
       next.delete("searchMode");
     }
-    router.push(`/explore?${next.toString()}`);
-  }, [inputValue, searchMode, router, searchParams]);
+    router.push(`${basePath}?${next.toString()}`);
+  }, [inputValue, searchMode, router, searchParams, basePath]);
 
   const setSort = useCallback(
     (value: string) => {
       const next = new URLSearchParams(searchParams.toString());
       next.set("sort", value);
-      router.push(`/explore?${next.toString()}`);
+      router.push(`${basePath}?${next.toString()}`);
     },
-    [router, searchParams]
+    [router, searchParams, basePath]
   );
 
   const applyDate = useCallback(() => {
@@ -144,12 +146,12 @@ export function ExploreSearchSort({
     if (next.get("page")) next.set("page", "1");
     setDateOpen(false);
     const q = next.toString();
-    const target = q ? `/explore?${q}` : "/explore";
+    const target = q ? `${basePath}?${q}` : basePath;
     const current = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
     if (target !== current) {
       router.push(target);
     }
-  }, [datePreset, customStart, customEnd, router, searchParams, pathname]);
+  }, [datePreset, customStart, customEnd, router, searchParams, pathname, basePath]);
 
   const placeholder =
     searchMode === "url"
@@ -166,7 +168,7 @@ export function ExploreSearchSort({
           onChange={(e) => {
             const next = new URLSearchParams(searchParams.toString());
             next.set("searchMode", e.target.value);
-            router.push(`/explore?${next.toString()}`);
+            router.push(`${basePath}?${next.toString()}`);
           }}
           className="rounded-md border border-input bg-background px-2 py-2 text-sm shrink-0"
           aria-label="Search mode"

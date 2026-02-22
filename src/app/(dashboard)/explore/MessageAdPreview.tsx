@@ -35,9 +35,9 @@ export function MessageAdPreview({
   return (
     <div className="overflow-hidden">
       <div className="flex py-[18px] px-1.5 gap-x-1">
-        {/* Avatar stack: sender (or placeholder) + company logo bottom-right */}
-        <div className="relative shrink-0 h-6 w-6">
-          <div className="absolute top-0 left-0 w-4 h-4 rounded-full overflow-hidden bg-muted">
+        {/* Avatar stack: sender (Apify senderImageUrl when available, e.g. AFAS) + company logo bottom-right */}
+        <div className="relative shrink-0 h-12 w-12">
+          <div className="absolute top-0 left-0 w-8 h-8 rounded-full overflow-hidden bg-muted">
             {senderImageUrl ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
@@ -46,12 +46,12 @@ export function MessageAdPreview({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <span className="flex w-full h-full items-center justify-center text-[8px] font-bold text-muted-foreground">
+              <span className="flex w-full h-full items-center justify-center text-base font-bold text-muted-foreground">
                 ?
               </span>
             )}
           </div>
-          <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full overflow-hidden bg-muted border border-background">
+          <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full overflow-hidden bg-muted border border-background">
             {companyLogoUrl ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
@@ -60,7 +60,7 @@ export function MessageAdPreview({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <span className="flex w-full h-full items-center justify-center text-[6px] font-bold text-muted-foreground">
+              <span className="flex w-full h-full items-center justify-center text-xs font-bold text-muted-foreground">
                 {companyName?.charAt(0) ?? "?"}
               </span>
             )}

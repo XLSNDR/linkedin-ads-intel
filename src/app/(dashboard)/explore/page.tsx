@@ -5,142 +5,14 @@ import { syncAllRunningRuns } from "@/lib/services/sync-scrape-run";
 import { ExploreFilters } from "./ExploreFilters";
 import { ExploreSearchSort } from "./ExploreSearchSort";
 import { AdCardSaveButton } from "./AdCardSaveButton";
-import { AdCardBodyText } from "./AdCardBodyText";
-import { CarouselAdPreview } from "./CarouselAdPreview";
-import { DocumentAdPreview } from "./DocumentAdPreview";
-import { EventAdPreview } from "./EventAdPreview";
-import { FollowCompanyAdPreview } from "./FollowCompanyAdPreview";
-import { TextAdPreview } from "./TextAdPreview";
-import { MessageAdPreview } from "./MessageAdPreview";
-import { SpotlightAdPreview } from "./SpotlightAdPreview";
-import { VideoAdPreview } from "./VideoAdPreview";
-import { LinkedInArticleAdPreview } from "./LinkedInArticleAdPreview";
-import { JobAdPreview } from "./JobAdPreview";
+import { ExploreAdCard } from "./ExploreAdCard";
 import { ExploreScrapingBanner } from "./ExploreScrapingBanner";
 import { ExploreFollowBanner } from "./ExploreFollowBanner";
-import { getCountryFlag, parseCountryData } from "@/lib/country-flags";
-
-const FORMAT_LABELS: Record<string, string> = {
-  SINGLE_IMAGE: "Single Image",
-  CAROUSEL: "Carousel",
-  VIDEO: "Video",
-  MESSAGE: "Message",
-  TEXT: "Text",
-  DOCUMENT: "Document",
-  EVENT: "Event",
-  SPOTLIGHT: "Spotlight",
-  FOLLOW_COMPANY: "Follow Company",
-  LINKEDIN_ARTICLE: "Linkedin Article",
-  SPONSORED_UPDATE_LINKEDIN_ARTICLE: "Linkedin Article",
-  JOB: "Job",
-  JOBS_V2: "Job",
-  job: "Job",
-  jobs_v2: "Job",
-  single_image: "Single Image",
-  linkedin_article: "Linkedin Article",
-  video: "Video",
-  carousel: "Carousel",
-  document: "Document",
-  event: "Event",
-  conversation: "Conversation",
-  text: "Text",
-  spotlight: "Spotlight",
-  thought_leader_image: "Thought Leader (image)",
-  thought_leader_video: "Thought Leader (video)",
-  thought_leader_text: "Thought Leader (text)",
-  other: "Other",
-};
-
-function formatAdLaunchDate(date: Date | null | undefined): string {
-  if (!date || typeof date.getTime !== "function" || Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-/** Format event time range from start/end dates (fallback when eventTimeDisplay not in data). */
-function formatEventTimeRange(
-  start: Date | null | undefined,
-  end: Date | null | undefined
-): string | null {
-  if (!start || typeof start.getTime !== "function" || Number.isNaN(start.getTime())) return null;
-  const startStr = start.toLocaleString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  if (!end || typeof end.getTime !== "function" || Number.isNaN(end.getTime()))
-    return startStr;
-  const endStr = end.toLocaleString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  return `${startStr} - ${endStr}`;
-}
-
-/** Format a number as Est. Impressions with dot thousands separator (e.g. 25000 → "25.000"). */
-function formatEstImpressions(n: number): string {
-  return n.toLocaleString("de-DE", { maximumFractionDigits: 0 });
-}
-
-/** Get estimated impressions for an ad.
- * - When specific countries are selected, ONLY use their values from countryImpressionsEstimate.
- *   If none of the selected countries have data, treat the estimate as 0 (no fallback to global).
- * - When no countries are selected, use impressionsEstimate or fall back to parsing impressions.
- */
-function getAdEstImpressions(
-  ad: { countryImpressionsEstimate: unknown; impressionsEstimate: number | null; impressions: string | null },
-  selectedCountries: string[],
-  impressionsToNumberFn: (s: string | null) => number
-): number {
-  if (selectedCountries.length > 0) {
-    const byCountry = ad.countryImpressionsEstimate as Record<string, number> | null;
-    if (byCountry && typeof byCountry === "object") {
-      let sum = 0;
-      for (const c of selectedCountries) {
-        const v = byCountry[c];
-        if (typeof v === "number") sum += v;
-      }
-      if (sum > 0) return sum;
-    }
-  }
-  // No country selected, or no data for selected countries: fall back to global estimate
-  if (selectedCountries.length === 0) {
-    return ad.impressionsEstimate ?? impressionsToNumberFn(ad.impressions);
-  }
-  // Countries selected but no per-country data → treat as 0 so it won't pass Min. Est. Impressions
-  return 0;
-}
-
-/** Parse impression string (e.g. "100k-150k", "1k-5k") to midpoint number for sorting. */
-function impressionsToNumber(impressions: string | null): number {
-  if (!impressions || !impressions.trim()) return 0;
-  const lower = impressions.toLowerCase().replace(/\s/g, "");
-  const rangeMatch = lower.match(/(\d+)(k|m)?\s*[-–]\s*(\d+)(k|m)?/);
-  if (rangeMatch) {
-    const mul = (s: string | undefined) => (s === "m" ? 1_000_000 : s === "k" ? 1000 : 1);
-    const a = parseInt(rangeMatch[1], 10) * mul(rangeMatch[2]);
-    const b = parseInt(rangeMatch[3], 10) * mul(rangeMatch[4]);
-    return Math.round((a + b) / 2);
-  }
-  const single = lower.match(/(\d+)(k|m)?/);
-  if (single) {
-    const n = parseInt(single[1], 10);
-    return single[2] === "m" ? n * 1_000_000 : single[2] === "k" ? n * 1000 : n;
-  }
-  return 0;
-}
+import { FORMAT_LABELS, impressionsToNumber, getAdEstImpressions } from "./ad-card-utils";
 
 const PAGE_SIZE = 50;
-/** Max ads to load from DB so pagination can show all (e.g. Text ads beyond first 500). Increase if needed. */
-const EXPLORE_MAX_ADS = 5000;
+/** Max ads to load from DB per request. Lower = faster Explore load; use filters to narrow results. */
+const EXPLORE_MAX_ADS = 1000;
 
 type SearchParams = {
   sort?: string;
@@ -169,7 +41,11 @@ export default async function ExplorePage({
   try {
   const params = await searchParams;
   // Sync any running scrapes so new ads appear (does not rely on cron or client polling)
-  await syncAllRunningRuns(prisma);
+  try {
+    await syncAllRunningRuns(prisma);
+  } catch (syncErr) {
+    console.warn("[Explore page] syncAllRunningRuns failed (non-fatal):", syncErr);
+  }
   const { userId: clerkId } = await auth();
   const dbUser = clerkId
     ? await prisma.user.findUnique({ where: { clerkId }, select: { id: true } })
@@ -221,27 +97,6 @@ export default async function ExplorePage({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const whereConditions: Prisma.AdWhereInput[] = [];
-
-  if (advertiserIds.length) whereConditions.push({ advertiserId: { in: advertiserIds } });
-  if (formats.length) whereConditions.push({ format: { in: formats } });
-  if (languages.length) whereConditions.push({ targetLanguage: { in: languages } });
-  if (promotedBy.length === 1) {
-    if (promotedBy[0] === "thought_leader") {
-      whereConditions.push({ thoughtLeaderMemberImageUrl: { not: null } });
-    } else if (promotedBy[0] === "company_page") {
-      whereConditions.push({ thoughtLeaderMemberImageUrl: null });
-    }
-  } else if (promotedBy.length === 2 && promotedBy.includes("thought_leader") && promotedBy.includes("company_page")) {
-    // both selected = no filter
-  } else if (promotedBy.length > 0) {
-    if (promotedBy.includes("thought_leader") && !promotedBy.includes("company_page")) {
-      whereConditions.push({ thoughtLeaderMemberImageUrl: { not: null } });
-    } else if (promotedBy.includes("company_page") && !promotedBy.includes("thought_leader")) {
-      whereConditions.push({ thoughtLeaderMemberImageUrl: null });
-    }
-  }
-  // For sidebar format options + promoted by counts: same filters but WITHOUT format and WITHOUT promotedBy
   const whereConditionsNoFormat: Prisma.AdWhereInput[] = [];
   if (advertiserIds.length) whereConditionsNoFormat.push({ advertiserId: { in: advertiserIds } });
   if (languages.length) whereConditionsNoFormat.push({ targetLanguage: { in: languages } });
@@ -255,12 +110,10 @@ export default async function ExplorePage({
         startDate: { lte: rangeEnd },
         OR: [{ endDate: { gte: rangeStart } }, { endDate: null }],
       };
-      whereConditions.push(dateCondition);
       whereConditionsNoFormat.push(dateCondition);
     }
   }
   if (ctas.length) {
-    whereConditions.push({ callToAction: { in: ctas } });
     whereConditionsNoFormat.push({ callToAction: { in: ctas } });
   }
   if (search) {
@@ -273,13 +126,64 @@ export default async function ExplorePage({
               { headline: { contains: search, mode: "insensitive" as const } },
             ],
           };
-    whereConditions.push(searchCondition);
     whereConditionsNoFormat.push(searchCondition);
   }
 
-  const where: Prisma.AdWhereInput = whereConditions.length ? { AND: whereConditions } : {};
   const whereNoFormat: Prisma.AdWhereInput =
     whereConditionsNoFormat.length ? { AND: whereConditionsNoFormat } : {};
+
+  // Probe: does DB have thoughtLeaderMemberImageUrl? (avoids error on local when migration not applied)
+  let hasThoughtLeaderColumn = false;
+  type FormatOptionRow = { format: string | null; countryImpressionsEstimate: unknown; impressionsEstimate: number | null; impressions: string | null; thoughtLeaderMemberImageUrl?: string | null };
+  let adsForFormatOptions: FormatOptionRow[];
+  try {
+    await prisma.ad.findMany({
+      where: Object.keys(whereNoFormat).length > 0 ? whereNoFormat : undefined,
+      select: { thoughtLeaderMemberImageUrl: true },
+      take: 1,
+    });
+    hasThoughtLeaderColumn = true;
+  } catch {
+    hasThoughtLeaderColumn = false;
+  }
+  adsForFormatOptions = await prisma.ad.findMany({
+    where: Object.keys(whereNoFormat).length > 0 ? whereNoFormat : undefined,
+    select: hasThoughtLeaderColumn
+      ? {
+          format: true,
+          countryImpressionsEstimate: true,
+          impressionsEstimate: true,
+          impressions: true,
+          thoughtLeaderMemberImageUrl: true,
+        }
+      : {
+          format: true,
+          countryImpressionsEstimate: true,
+          impressionsEstimate: true,
+          impressions: true,
+        },
+    take: EXPLORE_MAX_ADS,
+  });
+
+  const whereConditions: Prisma.AdWhereInput[] = [...whereConditionsNoFormat];
+  if (formats.length) whereConditions.push({ format: { in: formats } });
+  if (hasThoughtLeaderColumn && promotedBy.length === 1) {
+    if (promotedBy[0] === "thought_leader") {
+      whereConditions.push({ thoughtLeaderMemberImageUrl: { not: null } });
+    } else if (promotedBy[0] === "company_page") {
+      whereConditions.push({ thoughtLeaderMemberImageUrl: null });
+    }
+  } else if (hasThoughtLeaderColumn && promotedBy.length === 2 && promotedBy.includes("thought_leader") && promotedBy.includes("company_page")) {
+    // both selected = no filter
+  } else if (hasThoughtLeaderColumn && promotedBy.length > 0) {
+    if (promotedBy.includes("thought_leader") && !promotedBy.includes("company_page")) {
+      whereConditions.push({ thoughtLeaderMemberImageUrl: { not: null } });
+    } else if (promotedBy.includes("company_page") && !promotedBy.includes("thought_leader")) {
+      whereConditions.push({ thoughtLeaderMemberImageUrl: null });
+    }
+  }
+
+  const where: Prisma.AdWhereInput = whereConditions.length ? { AND: whereConditions } : {};
 
   const orderBy =
     sort === "runtime"
@@ -290,24 +194,18 @@ export default async function ExplorePage({
 
   let ads = await prisma.ad.findMany({
     where,
-    include: { advertiser: true },
+    include: {
+      advertiser: true,
+      ...(dbUser && {
+        collectionAds: {
+          where: { collection: { userId: dbUser.id } },
+          select: { collectionId: true },
+        },
+      }),
+    },
     orderBy,
     take: EXPLORE_MAX_ADS,
   });
-
-  // Fetch ads without format/promotedBy filter to build format option counts and promoted by counts
-  let adsForFormatOptions: { format: string | null; countryImpressionsEstimate: unknown; impressionsEstimate: number | null; impressions: string | null; thoughtLeaderMemberImageUrl: string | null }[] =
-    await prisma.ad.findMany({
-      where: Object.keys(whereNoFormat).length > 0 ? whereNoFormat : undefined,
-      select: {
-        format: true,
-        countryImpressionsEstimate: true,
-        impressionsEstimate: true,
-        impressions: true,
-        thoughtLeaderMemberImageUrl: true,
-      },
-      take: EXPLORE_MAX_ADS,
-    });
 
   if (countries.length > 0) {
     ads = ads.filter((ad) => {
@@ -489,309 +387,21 @@ export default async function ExplorePage({
               const advertiser = ad.advertiser;
               if (!advertiser) return null;
               return (
-              <li key={ad.id} className="explore-ad-card-item min-w-0">
-                <article className="w-full rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col">
-                  {/* 1. Header: logo + company + Promoted | Status + Save */}
-                  <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="relative h-6 w-6 shrink-0 rounded overflow-hidden bg-muted">
-                        {advertiser.logoUrl ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img
-                            src={advertiser.logoUrl}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <span className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground">
-                            {advertiser.name?.charAt(0) ?? "?"}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex min-w-0 flex-col">
-                        <span className="text-sm font-bold leading-5 truncate">
-                          {advertiser.name ?? "—"}
-                        </span>
-                        <span className="text-xs text-muted-foreground leading-[15px]">
-                          Promoted
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <AdCardSaveButton adId={ad.id} />
-                    </div>
-                  </div>
-
-                  {/* 2. Intro text – skip for spotlight, message, follow company, text, linkedin_article, job (content is inside format-specific block) */}
-                  {ad.format?.toLowerCase() !== "spotlight" &&
-                    ad.format?.toLowerCase() !== "message" &&
-                    ad.format?.toLowerCase() !== "follow_company" &&
-                    ad.format?.toLowerCase() !== "text" &&
-                    ad.format?.toLowerCase() !== "linkedin_article" &&
-                    ad.format?.toLowerCase() !== "sponsored_update_linkedin_article" &&
-                    ad.format?.toLowerCase() !== "job" &&
-                    ad.format?.toLowerCase() !== "jobs_v2" && (
-                    <div className="px-3 py-1.5">
-                      <AdCardBodyText text={ad.bodyText || ad.headline || "—"} />
-                    </div>
-                  )}
-
-                  {/* 3. Main creative (spotlight / document / image / video) */}
-                  <div className="border-t border-border mt-0">
-                    {ad.format?.toLowerCase() === "spotlight" ? (
-                      <SpotlightAdPreview
-                        bodyText={ad.bodyText}
-                        headline={ad.headline}
-                        callToAction={ad.callToAction}
-                        destinationUrl={ad.destinationUrl}
-                        profileImageUrl={ad.mediaUrl}
-                        companyLogoUrl={advertiser.logoUrl}
-                        companyName={advertiser.name}
-                        adLibraryUrl={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
+                <li key={ad.id} className="explore-ad-card-item min-w-0">
+                  <ExploreAdCard
+                    ad={ad}
+                    advertiser={advertiser}
+                    countries={countries}
+                    impressionsToNumber={impressionsToNumber}
+                    actionsSlot={
+                      <AdCardSaveButton
+                        adId={ad.id}
+                        isSaved={(ad.collectionAds?.length ?? 0) > 0}
                       />
-                    ) : ad.format?.toLowerCase() === "document" ? (
-                      <div className="flex flex-col">
-                        <DocumentAdPreview
-                          mediaData={ad.mediaData}
-                          mediaUrl={ad.mediaUrl}
-                        />
-                      </div>
-                    ) : ad.format?.toLowerCase() === "video" ? (
-                      <VideoAdPreview
-                        videoUrl={ad.mediaUrl}
-                        posterUrl={(ad.mediaData as { posterUrl?: string } | null)?.posterUrl}
-                        adLibraryUrl={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
-                      />
-                    ) : ad.format?.toLowerCase() === "message" ? (
-                      <MessageAdPreview
-                        bodyText={ad.bodyText}
-                        senderName={(ad.mediaData as { senderName?: string } | null)?.senderName ?? null}
-                        senderImageUrl={(ad.mediaData as { senderImageUrl?: string } | null)?.senderImageUrl ?? null}
-                        companyLogoUrl={advertiser.logoUrl}
-                        companyName={advertiser.name}
-                        callToAction={ad.callToAction}
-                        destinationUrl={ad.destinationUrl}
-                        adLibraryUrl={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
-                        bannerImageUrl={ad.mediaUrl}
-                      />
-                    ) : ad.format?.toLowerCase() === "event" ? (
-                      <EventAdPreview
-                        eventImageUrl={ad.mediaUrl}
-                        eventTitle={ad.headline}
-                        eventTimeDisplay={
-                          (ad.mediaData as { eventTimeDisplay?: string } | null)?.eventTimeDisplay ??
-                          formatEventTimeRange(ad.startDate, ad.endDate)
-                        }
-                        companyName={advertiser.name}
-                        isOnline={true}
-                        eventUrl={
-                          (ad.mediaData as { eventUrl?: string } | null)?.eventUrl ??
-                          ad.destinationUrl ??
-                          ad.adLibraryUrl ??
-                          `https://www.linkedin.com/ad-library/detail/${ad.externalId}`
-                        }
-                      />
-                    ) : ad.format?.toLowerCase() === "carousel" &&
-                      (ad.mediaData as { slides?: Array<{ imageUrl: string; title?: string }> } | null)?.slides
-                        ?.length ? (
-                      <CarouselAdPreview
-                        slides={
-                          (ad.mediaData as { slides: Array<{ imageUrl: string; title?: string }> }).slides
-                        }
-                        destinationUrl={ad.destinationUrl ?? null}
-                      />
-                    ) : ad.format?.toLowerCase() === "follow_company" ? (
-                      <FollowCompanyAdPreview
-                        bodyText={ad.bodyText}
-                        headline={ad.headline}
-                        callToAction={ad.callToAction}
-                        destinationUrl={ad.destinationUrl ?? null}
-                        profileImageUrl={ad.mediaUrl}
-                        companyLogoUrl={advertiser.logoUrl}
-                        companyName={advertiser.name}
-                        companyUrl={ad.destinationUrl ?? null}
-                      />
-                    ) : ad.format?.toLowerCase() === "job" || ad.format?.toLowerCase() === "jobs_v2" ? (
-                      <JobAdPreview
-                        bodyText={ad.bodyText}
-                        headline={ad.headline}
-                        callToAction={ad.callToAction}
-                        destinationUrl={ad.destinationUrl ?? null}
-                        companyLogoUrl={advertiser.logoUrl}
-                        companyName={advertiser.name}
-                      />
-                    ) : ad.format?.toLowerCase() === "text" ? (
-                      <TextAdPreview
-                        headline={ad.headline}
-                        bodyText={ad.bodyText}
-                        imageUrl={ad.mediaUrl}
-                        companyLogoUrl={advertiser.logoUrl}
-                        companyName={advertiser.name}
-                      />
-                    ) : ad.format?.toLowerCase() === "linkedin_article" ||
-                      ad.format?.toLowerCase() === "sponsored_update_linkedin_article" ? (
-                      <LinkedInArticleAdPreview
-                        bodyText={ad.bodyText}
-                        headline={ad.headline}
-                        destinationUrl={ad.destinationUrl}
-                        mediaUrl={ad.mediaUrl}
-                        companyLogoUrl={advertiser.logoUrl}
-                        companyName={advertiser.name}
-                      />
-                    ) : ad.mediaUrl ? (
-                      ad.destinationUrl ? (
-                        <a
-                          href={ad.destinationUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex flex-col hover:no-underline focus:no-underline"
-                        >
-                          <div className="relative w-full min-h-[120px] bg-muted">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={ad.mediaUrl}
-                              alt=""
-                              className="w-full object-cover min-h-[120px]"
-                            />
-                          </div>
-                        </a>
-                      ) : (
-                        <div className="relative w-full min-h-[120px] bg-muted">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={ad.mediaUrl}
-                            alt=""
-                            className="w-full object-cover min-h-[120px]"
-                          />
-                        </div>
-                      )
-                    ) : null}
-
-                    {/* 4. Headline bar – skip for spotlight, message, event, carousel, follow company, text, linkedin_article, job (CTA/headline inside format block) */}
-                    {ad.format?.toLowerCase() !== "spotlight" &&
-                      ad.format?.toLowerCase() !== "message" &&
-                      ad.format?.toLowerCase() !== "event" &&
-                      ad.format?.toLowerCase() !== "carousel" &&
-                      ad.format?.toLowerCase() !== "follow_company" &&
-                      ad.format?.toLowerCase() !== "text" &&
-                      ad.format?.toLowerCase() !== "linkedin_article" &&
-                      ad.format?.toLowerCase() !== "sponsored_update_linkedin_article" &&
-                      ad.format?.toLowerCase() !== "job" &&
-                      ad.format?.toLowerCase() !== "jobs_v2" &&
-                      (ad.headline || ad.callToAction) && (
-                      <div className="border-t border-border bg-muted/30 p-1.5 flex justify-between gap-2 items-start">
-                        {ad.headline ? (
-                          <header className="grow min-w-[40%] break-words">
-                            <h2 className="text-[11px] font-semibold leading-[15px] text-foreground break-words">
-                              {ad.headline}
-                            </h2>
-                          </header>
-                        ) : (
-                          <span className="grow min-w-[40%]" />
-                        )}
-                        {ad.callToAction && (
-                          <a
-                            href={ad.destinationUrl ?? ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="shrink-0 self-center rounded-md bg-transparent border border-black px-3 py-1.5 text-sm font-medium text-black hover:bg-black/5 no-underline break-words max-w-[150px]"
-                          >
-                            {ad.callToAction}
-                          </a>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 5. Runtime (Start → Last Seen) + Start & Last Seen (line 2). Use endDate (Apify availability.end) when present so we match LinkedIn; else lastSeenAt. */}
-                  <div className="border-t border-border px-3 py-2 flex flex-col gap-1 text-xs text-muted-foreground">
-                    {(() => {
-                      const effectiveEnd = ad.endDate ?? ad.lastSeenAt;
-                      const runtimeDays =
-                        ad.startDate && effectiveEnd
-                          ? Math.round(
-                              (effectiveEnd.getTime() - ad.startDate.getTime()) /
-                                (24 * 60 * 60 * 1000)
-                            )
-                          : 0;
-                      return (
-                        <>
-                          {runtimeDays > 0 ? (
-                            <span className="flex items-center gap-1.5 font-bold text-foreground" title="Runtime (from Start to Last Seen)">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                                <circle cx="12" cy="12" r="10" />
-                                <polyline points="12 6 12 12 16 14" />
-                              </svg>
-                              Runtime: {runtimeDays} Days
-                            </span>
-                          ) : null}
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                            <span className="flex items-center gap-1.5" title="Start date">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                                <line x1="16" y1="2" x2="16" y2="6" />
-                                <line x1="8" y1="2" x2="8" y2="6" />
-                                <line x1="3" y1="10" x2="21" y2="10" />
-                              </svg>
-                              Start: {ad.startDate ? formatAdLaunchDate(ad.startDate) : "—"}
-                            </span>
-                            <span className="flex items-center gap-1.5" title="Last seen (ad end date from LinkedIn when available)">
-                              Last Seen: {effectiveEnd ? formatAdLaunchDate(effectiveEnd) : "—"}
-                            </span>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-
-                  {/* 6. Est. Impressions (based on selected countries) */}
-                  <div className="border-t border-border px-3 py-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    {(() => {
-                      const est = getAdEstImpressions(ad, countries, impressionsToNumber);
-                      return est > 0 ? (
-                        <span title="Est. Impressions">
-                          <span className="font-medium text-foreground">
-                            {formatEstImpressions(est)}
-                          </span>{" "}
-                          <span className="font-medium text-foreground">Est. Impressions</span>
-                        </span>
-                      ) : null;
-                    })()}
-                    {ad.targetLanguage && (
-                      <span title="Language">{ad.targetLanguage}</span>
-                    )}
-                  </div>
-
-                  {/* 7. Format badge + country flags (AdsMom-style bottom row) */}
-                  <div className="border-t border-border px-3 py-2 flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-muted-foreground" title="Ad format">
-                      {FORMAT_LABELS[ad.format] ?? ad.format.replace(/_/g, " ")}
-                    </span>
-                    <div className="flex items-center gap-1" title="Top countries by impressions">
-                      {parseCountryData(ad.impressionsPerCountry)
-                        .slice(0, 2)
-                        .map(({ country }) => (
-                          <span key={country} className="text-base leading-none" aria-label={country}>
-                            {getCountryFlag(country)}
-                          </span>
-                        ))}
-                    </div>
-                  </div>
-
-                  {/* 8. "View details" link at bottom */}
-                  <div className="flex justify-center py-2 border-t border-border mt-auto">
-                    <Link
-                      href={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-bold text-primary hover:underline py-1 px-2 rounded-lg hover:bg-muted/50"
-                    >
-                      View details
-                    </Link>
-                  </div>
-                </article>
-              </li>
-            );
+                    }
+                  />
+                </li>
+              );
             })}
           </ul>
           </div>
