@@ -8,15 +8,19 @@ import { AdCardSaveButton } from "./AdCardSaveButton";
 import { ExploreAdCard } from "./ExploreAdCard";
 
 type ExploreAdCardProps = React.ComponentProps<typeof ExploreAdCard>;
+type AdType = ExploreAdCardProps["ad"];
 
-type Props = Omit<ExploreAdCardProps, "impressionsToNumber" | "actionsSlot"> & {
+/** Ad with date fields as string | null (serialized from server). Extra fields from Prisma are allowed. */
+type SerializedAd = Omit<AdType, "startDate" | "endDate" | "lastSeenAt"> & {
+  startDate?: string | Date | null;
+  endDate?: string | Date | null;
+  lastSeenAt?: string | Date | null;
+};
+
+type Props = Omit<ExploreAdCardProps, "impressionsToNumber" | "actionsSlot" | "ad"> & {
   adId: string;
   isSaved: boolean;
-  ad: ExploreAdCardProps["ad"] & {
-    startDate?: string | Date | null;
-    endDate?: string | Date | null;
-    lastSeenAt?: string | Date | null;
-  };
+  ad: SerializedAd;
 };
 
 /** Normalize ad: ensure date fields are Date objects (server sends ISO strings). */
