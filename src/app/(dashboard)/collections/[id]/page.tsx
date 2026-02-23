@@ -8,6 +8,7 @@ import { ExploreAdCard } from "@/app/(dashboard)/explore/ExploreAdCard";
 import { AdCardSaveButton } from "@/app/(dashboard)/explore/AdCardSaveButton";
 import { FORMAT_LABELS, impressionsToNumber, getAdEstImpressions } from "@/app/(dashboard)/explore/ad-card-utils";
 import { CollectionDetailActions } from "../CollectionDetailActions";
+import { AdCardClickWrapper } from "@/components/ads/AdCardClickWrapper";
 
 export const dynamic = "force-dynamic";
 
@@ -292,21 +293,23 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
                   if (!advertiser) return null;
                   return (
                     <li key={ad.id} className="min-w-0">
-                      <ExploreAdCard
-                        ad={ad}
-                        advertiser={advertiser}
-                        countries={countries}
-                        impressionsToNumber={impressionsToNumber}
-                        actionsSlot={
-                          <div className="flex items-center gap-2">
-                            <AdCardSaveButton
-                              adId={ad.id}
-                              isSaved={true}
-                            />
-                            <CollectionDetailActions collectionId={id} adId={ad.id} />
-                          </div>
-                        }
-                      />
+                      <AdCardClickWrapper adId={ad.id}>
+                        <ExploreAdCard
+                          ad={ad}
+                          advertiser={advertiser}
+                          countries={countries}
+                          impressionsToNumber={impressionsToNumber}
+                          actionsSlot={
+                            <div className="flex items-center gap-2">
+                              <AdCardSaveButton
+                                adId={ad.id}
+                                isSaved={true}
+                              />
+                              <CollectionDetailActions collectionId={id} adId={ad.id} />
+                            </div>
+                          }
+                        />
+                      </AdCardClickWrapper>
                     </li>
                   );
                 })}

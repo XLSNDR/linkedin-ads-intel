@@ -18,7 +18,10 @@ export function AdCardSaveButton({ adId, isSaved = false }: Props) {
     <button
       type="button"
       data-ad-id={adId}
-      onClick={() => openSaveModal(adId)}
+      onClick={(e) => {
+        e.stopPropagation();
+        openSaveModal(adId);
+      }}
       className="flex items-center gap-1 text-xs transition-colors hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
       title={isSaved ? "Saved to collection (click to edit)" : "Save to collection"}
       aria-label={isSaved ? "Saved to collection" : "Save to collection"}

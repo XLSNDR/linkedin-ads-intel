@@ -49,6 +49,10 @@ type Props = {
   countries: string[];
   impressionsToNumber: (s: string | null) => number;
   actionsSlot: React.ReactNode;
+  /** When true (e.g. inside ad detail modal), hide the bottom "View details" link. */
+  hideViewDetailsLink?: boolean;
+  /** When set, "View details" opens the ad modal instead of linking to LinkedIn. */
+  onViewDetailsClick?: (adId: string) => void;
 };
 
 export function ExploreAdCard({
@@ -57,6 +61,8 @@ export function ExploreAdCard({
   countries,
   impressionsToNumber,
   actionsSlot,
+  hideViewDetailsLink = false,
+  onViewDetailsClick,
 }: Props) {
   return (
     <article className="w-full rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col">
@@ -348,17 +354,32 @@ export function ExploreAdCard({
         </div>
       </div>
 
-      {/* 8. View details link */}
-      <div className="flex justify-center py-2 border-t border-border mt-auto">
-        <Link
-          href={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm font-bold text-primary hover:underline py-1 px-2 rounded-lg hover:bg-muted/50"
-        >
-          View details
-        </Link>
-      </div>
+      {/* 8. View details link (hidden in modal; header has "View on LinkedIn"). When onViewDetailsClick is set, opens modal instead of linking out. */}
+      {!hideViewDetailsLink && (
+        <div className="flex justify-center py-2 border-t border-border mt-auto">
+          {onViewDetailsClick ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewDetailsClick(ad.id);
+              }}
+              className="text-sm font-bold text-primary hover:underline py-1 px-2 rounded-lg hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            >
+              View details
+            </button>
+          ) : (
+            <Link
+              href={ad.adLibraryUrl ?? `https://www.linkedin.com/ad-library/detail/${ad.externalId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-bold text-primary hover:underline py-1 px-2 rounded-lg hover:bg-muted/50"
+            >
+              View details
+            </Link>
+          )}
+        </div>
+      )}
     </article>
   );
 }

@@ -4,8 +4,7 @@ import { Prisma, prisma } from "@/lib/prisma";
 import { syncAllRunningRuns } from "@/lib/services/sync-scrape-run";
 import { ExploreFilters } from "./ExploreFilters";
 import { ExploreSearchSort } from "./ExploreSearchSort";
-import { AdCardSaveButton } from "./AdCardSaveButton";
-import { ExploreAdCard } from "./ExploreAdCard";
+import { ExploreAdCardWithModal } from "./ExploreAdCardWithModal";
 import { ExploreScrapingBanner } from "./ExploreScrapingBanner";
 import { ExploreFollowBanner } from "./ExploreFollowBanner";
 import { FORMAT_LABELS, impressionsToNumber, getAdEstImpressions } from "./ad-card-utils";
@@ -386,19 +385,21 @@ export default async function ExplorePage({
             {paginatedAds.map((ad) => {
               const advertiser = ad.advertiser;
               if (!advertiser) return null;
+              const { startDate, endDate, lastSeenAt, ...adRest } = ad;
+              const adForClient = {
+                ...adRest,
+                startDate: startDate?.toISOString() ?? null,
+                endDate: endDate?.toISOString() ?? null,
+                lastSeenAt: lastSeenAt?.toISOString() ?? null,
+              };
               return (
                 <li key={ad.id} className="explore-ad-card-item min-w-0">
-                  <ExploreAdCard
-                    ad={ad}
+                  <ExploreAdCardWithModal
+                    adId={ad.id}
+                    ad={adForClient}
                     advertiser={advertiser}
                     countries={countries}
-                    impressionsToNumber={impressionsToNumber}
-                    actionsSlot={
-                      <AdCardSaveButton
-                        adId={ad.id}
-                        isSaved={(ad.collectionAds?.length ?? 0) > 0}
-                      />
-                    }
+                    isSaved={(ad.collectionAds?.length ?? 0) > 0}
                   />
                 </li>
               );

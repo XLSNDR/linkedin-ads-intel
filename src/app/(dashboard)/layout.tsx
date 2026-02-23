@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { Navigation } from "@/components/layout/Navigation";
 import { SaveToCollectionProvider } from "@/components/collections/SaveToCollectionContext";
+import { AdDetailModalProvider } from "@/components/ads/AdDetailModalContext";
 
 export default async function DashboardLayout({
   children,
@@ -29,8 +30,10 @@ export default async function DashboardLayout({
 
   return (
     <SaveToCollectionProvider>
-      <Navigation role={user.role} />
-      {children}
+      <AdDetailModalProvider>
+        <Navigation role={user.role} />
+        {children}
+      </AdDetailModalProvider>
     </SaveToCollectionProvider>
   );
 }

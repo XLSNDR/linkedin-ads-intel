@@ -69,6 +69,16 @@ export function formatEstImpressions(n: number): string {
   return n.toLocaleString("de-DE", { maximumFractionDigits: 0 });
 }
 
+/** Format for detail modal: "~75K" or "~67.5K" */
+export function formatEstImpressionsShort(n: number): string {
+  if (n >= 1_000_000) return `~${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000) {
+    const k = n / 1_000;
+    return `~${k >= 10 ? Math.round(k) : k.toFixed(1).replace(/\.0$/, "")}K`;
+  }
+  return `~${n}`;
+}
+
 export function impressionsToNumber(impressions: string | null): number {
   if (!impressions || !impressions.trim()) return 0;
   const lower = impressions.toLowerCase().replace(/\s/g, "");
