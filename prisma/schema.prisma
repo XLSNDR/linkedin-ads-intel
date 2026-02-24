@@ -127,10 +127,11 @@ model UserAdvertiser {
   status          String   @default("added") // "added" | "following" | "archived"
 
   // Scraping
-  firstTrackedAt  DateTime @default(now())
+  firstTrackedAt  DateTime  @default(now())
+  followedAt      DateTime? // When user first set status to "following" (or reset on refollow)
   lastScrapedAt   DateTime?
   nextScrapeAt    DateTime?
-  scrapeCount     Int      @default(0)
+  scrapeCount     Int       @default(0)
 
   // Metadata
   createdAt       DateTime @default(now())

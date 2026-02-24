@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { startScrapeRun } from "@/lib/apify/client";
 import { checkMonthlyBudget } from "@/lib/services/ad-storage";
+import { buildAdLibrarySearchUrl, frequencyToWindow } from "@/lib/linkedin-ad-library-url";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,11 @@ export async function GET(req: NextRequest) {
       linkedinCompanyId: true,
       linkedinUrl: true,
       resultsLimit: true,
+      scrapeFrequency: true,
+      userAdvertisers: {
+        where: { status: "following" },
+        select: { id: true },
+      },
     },
   });
 
@@ -55,11 +61,35 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-      const { runId, datasetId } = await startScrapeRun({
-        ...(hasId && { linkedinCompanyId: advertiser.linkedinCompanyId! }),
-        ...(hasUrl && { startUrls: [advertiser.linkedinUrl!] }),
-        resultsLimit: advertiser.resultsLimit ?? undefined,
-      });
+      const hasFollowers =
+        advertiser.userAdvertisers != null &&
+        advertiser.userAdvertisers.length > 0;
+      const useDateRange =
+        hasFollowers &&
+        hasId &&
+        advertiser.scrapeFrequency != null &&
+        (advertiser.scrapeFrequency === "weekly" ||
+          advertiser.scrapeFrequency === "monthly");
+
+      const { runId, datasetId } = await startScrapeRun(
+        useDateRange
+          ? {
+              startUrls: [
+                buildAdLibrarySearchUrl(
+                  advertiser.linkedinCompanyId!,
+                  frequencyToWindow(
+                    advertiser.scrapeFrequency as "weekly" | "monthly"
+                  )
+                ),
+              ],
+              resultsLimit: advertiser.resultsLimit ?? undefined,
+            }
+          : {
+              ...(hasId && { linkedinCompanyId: advertiser.linkedinCompanyId! }),
+              ...(hasUrl && { startUrls: [advertiser.linkedinUrl!] }),
+              resultsLimit: advertiser.resultsLimit ?? undefined,
+            }
+      );
 
       await prisma.scrapeRun.create({
         data: {

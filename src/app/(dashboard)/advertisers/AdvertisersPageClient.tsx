@@ -24,6 +24,7 @@ interface AdvertiserInfo {
   id: string;
   name: string;
   logoUrl: string | null;
+  linkedinCompanyId: string | null;
   totalAdsFound: number;
   lastScrapedAt: string | null;
   scrapeFrequency: string | null;
@@ -90,12 +91,23 @@ export function AdvertisersPageClient() {
   const [unfollowModal, setUnfollowModal] = useState<{ open: boolean; item: ListItem | null }>({ open: false, item: null });
   const [removeModal, setRemoveModal] = useState<{ open: boolean; item: ListItem | null }>({ open: false, item: null });
   const [actionLoading, setActionLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
 
   const fetchList = useCallback(async () => {
     setLoading(true);
+    setListError(null);
     try {
       const res = await fetch("/api/advertisers/list");
-      const data = await res.json();
+      const text = await res.text();
+      let data: { advertisers?: ListItem[]; limits?: Limits; error?: string } = {};
+      if (text.length > 0) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          setListError("Invalid response from server. Check the browser Network tab for /api/advertisers/list.");
+          return;
+        }
+      }
       if (res.ok) {
         setAllItems(data.advertisers ?? []);
         if (data.limits) {
@@ -106,7 +118,11 @@ export function AdvertisersPageClient() {
             currentFollowing: data.limits.currentFollowing,
           });
         }
+      } else {
+        setListError(data.error ?? `Request failed (${res.status}). Sign in or try again.`);
       }
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : "Failed to load advertisers.");
     } finally {
       setLoading(false);
     }
@@ -137,7 +153,14 @@ export function AdvertisersPageClient() {
     try {
       const endpoint = item.status === "archived" ? "refollow" : "follow";
       const res = await fetch(`/api/advertisers/${item.id}/${endpoint}`, { method: "POST" });
-      if (res.ok) await fetchList();
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        await fetchList();
+        setFollowModal({ open: false, item: null });
+      } else if (res.status === 400 && data.code === "COMPANY_ID_REQUIRED") {
+        setFollowModal({ open: false, item: null });
+        alert(data.error ?? "Follow is available after the first scrape has completed.");
+      }
     } finally {
       setActionLoading(false);
     }
@@ -168,6 +191,32 @@ export function AdvertisersPageClient() {
   }
 
   const isEmpty = limits != null && limits.currentAdded === 0;
+
+  if (listError && !loading) {
+    const isUserNotFound = listError.includes("User not found") || listError.includes("sign out and sign in");
+    return (
+      <div className="min-h-[calc(100vh-4rem)] font-[family-name:var(--font-geist-sans)]">
+        <main className="max-w-6xl mx-auto px-6 py-8">
+          <h1 className="text-2xl font-semibold mb-4">Advertisers</h1>
+          <div className="rounded-xl border border-destructive/50 bg-destructive/5 p-6">
+            <p className="text-destructive font-medium mb-2">Could not load advertisers</p>
+            <p className="text-sm text-muted-foreground mb-4">{listError}</p>
+            {isUserNotFound && (
+              <p className="text-sm text-muted-foreground mb-4">
+                On localhost, open <a href="/api/sync-user" className="underline text-primary">/api/sync-user</a> while signed in to create your account in the database, then try again.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => fetchList()}>Try again</Button>
+              <Button variant="outline" asChild>
+                <a href="/sign-in">Sign in</a>
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (isEmpty) {
     return (
@@ -270,8 +319,9 @@ export function AdvertisersPageClient() {
                                 {item.status === "added" && (
                                   <Button
                                     size="sm"
-                                    onClick={() => setFollowModal({ open: true, item })}
-                                    title="Get recurring ad updates (weekly or monthly)"
+                                    onClick={() => item.advertiser.linkedinCompanyId && setFollowModal({ open: true, item })}
+                                    disabled={!item.advertiser.linkedinCompanyId}
+                                    title={item.advertiser.linkedinCompanyId ? "Get recurring ad updates (weekly or monthly)" : "Follow is available after the first scrape has completed."}
                                   >
                                     <Bell className="h-4 w-4 mr-1.5" aria-hidden />
                                     Follow
@@ -283,7 +333,12 @@ export function AdvertisersPageClient() {
                                   </Button>
                                 )}
                                 {item.status === "archived" && (
-                                  <Button size="sm" onClick={() => setFollowModal({ open: true, item })}>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => item.advertiser.linkedinCompanyId && setFollowModal({ open: true, item })}
+                                    disabled={!item.advertiser.linkedinCompanyId}
+                                    title={item.advertiser.linkedinCompanyId ? "Re-follow to get recurring updates again" : "Re-follow is available after the next scrape has completed."}
+                                  >
                                     Re-follow
                                   </Button>
                                 )}

@@ -5,6 +5,11 @@ import {
   canFollowAdvertiser,
   recalculateAdvertiserSchedule,
 } from "@/lib/services/plan-limits";
+import { buildAdLibrarySearchUrl, frequencyToWindow } from "@/lib/linkedin-ad-library-url";
+import { startScrapeRun } from "@/lib/apify/client";
+import { checkMonthlyBudget } from "@/lib/services/ad-storage";
+
+const RECENT_SCRAPE_MS = 24 * 60 * 60 * 1000;
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +58,16 @@ export async function POST(
     );
   }
 
+  if (!link.advertiser.linkedinCompanyId?.trim()) {
+    return NextResponse.json(
+      {
+        error: "Follow is available after the first scrape has completed.",
+        code: "COMPANY_ID_REQUIRED",
+      },
+      { status: 400 }
+    );
+  }
+
   const followCheck = await canFollowAdvertiser(prisma, user.id);
   if (!followCheck.allowed) {
     return NextResponse.json(
@@ -87,10 +102,59 @@ export async function POST(
 
   await prisma.userAdvertiser.update({
     where: { id: userAdvertiserId },
-    data: { status: "following", nextScrapeAt: nextScrape },
+    data: {
+      status: "following",
+      nextScrapeAt: nextScrape,
+      followedAt: new Date(),
+    },
   });
 
   await recalculateAdvertiserSchedule(prisma, link.advertiserId);
+
+  const recentlyScraped =
+    link.advertiser.lastScrapedAt != null &&
+    link.advertiser.lastScrapedAt.getTime() > Date.now() - RECENT_SCRAPE_MS;
+
+  if (
+    !recentlyScraped &&
+    link.advertiser.linkedinCompanyId?.trim() &&
+    (frequency === "weekly" || frequency === "monthly")
+  ) {
+    const budgetCheck = await checkMonthlyBudget(prisma);
+    if (budgetCheck.ok) {
+      try {
+        const window = frequencyToWindow(frequency as "weekly" | "monthly");
+        const url = buildAdLibrarySearchUrl(
+          link.advertiser.linkedinCompanyId,
+          window
+        );
+        const { runId, datasetId } = await startScrapeRun({
+          startUrls: [url],
+          resultsLimit: link.advertiser.resultsLimit ?? undefined,
+        });
+        await prisma.scrapeRun.create({
+          data: {
+            advertiserId: link.advertiserId,
+            status: "running",
+            apifyRunId: runId,
+            apifyDatasetId: datasetId,
+            jobType: "scheduled",
+          },
+        });
+        const now = new Date();
+        await prisma.userAdvertiser.update({
+          where: { id: userAdvertiserId },
+          data: { lastScrapedAt: now },
+        });
+        await prisma.advertiser.update({
+          where: { id: link.advertiserId },
+          data: { lastScrapedAt: now },
+        });
+      } catch (err) {
+        console.error("Follow immediate scrape start failed", link.advertiserId, err);
+      }
+    }
+  }
 
   const updated = await prisma.userAdvertiser.findUnique({
     where: { id: userAdvertiserId },

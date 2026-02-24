@@ -7,6 +7,7 @@ import {
 } from "@/lib/services/plan-limits";
 import { checkMonthlyBudget } from "@/lib/services/ad-storage";
 import { startScrapeRun } from "@/lib/apify/client";
+import { buildAdLibrarySearchUrl, frequencyToWindow } from "@/lib/linkedin-ad-library-url";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,16 @@ export async function POST(
     );
   }
 
+  if (!link.advertiser.linkedinCompanyId?.trim()) {
+    return NextResponse.json(
+      {
+        error: "Re-follow is available after the next scrape has completed.",
+        code: "COMPANY_ID_REQUIRED",
+      },
+      { status: 400 }
+    );
+  }
+
   const followCheck = await canFollowAdvertiser(prisma, user.id);
   if (!followCheck.allowed) {
     return NextResponse.json(
@@ -88,7 +99,11 @@ export async function POST(
 
   await prisma.userAdvertiser.update({
     where: { id: userAdvertiserId },
-    data: { status: "following", nextScrapeAt: nextScrape },
+    data: {
+      status: "following",
+      nextScrapeAt: nextScrape,
+      followedAt: new Date(),
+    },
   });
 
   await recalculateAdvertiserSchedule(prisma, link.advertiserId);
@@ -102,23 +117,39 @@ export async function POST(
   if (daysSinceScrape > STALE_DAYS) {
     const budgetCheck = await checkMonthlyBudget(prisma);
     if (budgetCheck.ok) {
-      const hasId = !!link.advertiser.linkedinCompanyId;
-      const hasUrl = !!link.advertiser.linkedinUrl;
+      const hasId = !!link.advertiser.linkedinCompanyId?.trim();
+      const hasUrl = !!link.advertiser.linkedinUrl?.trim();
       if (hasId || hasUrl) {
         try {
-          const { runId, datasetId } = await startScrapeRun({
-            ...(hasId && {
-              linkedinCompanyId: link.advertiser.linkedinCompanyId!,
-            }),
-            ...(hasUrl && { startUrls: [link.advertiser.linkedinUrl!] }),
-            resultsLimit: link.advertiser.resultsLimit ?? undefined,
-          });
+          const useDateRange =
+            hasId &&
+            (frequency === "weekly" || frequency === "monthly");
+          const { runId, datasetId } = await startScrapeRun(
+            useDateRange
+              ? {
+                  startUrls: [
+                    buildAdLibrarySearchUrl(
+                      link.advertiser.linkedinCompanyId!,
+                      frequencyToWindow(frequency as "weekly" | "monthly")
+                    ),
+                  ],
+                  resultsLimit: link.advertiser.resultsLimit ?? undefined,
+                }
+              : {
+                  ...(hasId && {
+                    linkedinCompanyId: link.advertiser.linkedinCompanyId!,
+                  }),
+                  ...(hasUrl && { startUrls: [link.advertiser.linkedinUrl!] }),
+                  resultsLimit: link.advertiser.resultsLimit ?? undefined,
+                }
+          );
           await prisma.scrapeRun.create({
             data: {
               advertiserId: link.advertiserId,
               status: "running",
               apifyRunId: runId,
               apifyDatasetId: datasetId,
+              jobType: "scheduled",
             },
           });
         } catch (err) {

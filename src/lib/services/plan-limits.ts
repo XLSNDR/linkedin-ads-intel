@@ -16,7 +16,7 @@ export interface LimitCheck {
   max: number;
 }
 
-/** Get current user's plan limits (user overrides win over plan). */
+/** Get current user's plan limits (user overrides win over plan). Admins get unlimited. */
 export async function getUserPlanLimits(
   prisma: PrismaClient,
   userId: string
@@ -26,6 +26,21 @@ export async function getUserPlanLimits(
     include: { plan: true },
   });
   if (!user) return null;
+  if (user.role === "admin") {
+    return {
+      maxAddedAdvertisers: 999_999,
+      maxFollowedAdvertisers: 999_999,
+      refreshFrequency: "weekly",
+    };
+  }
+  if (!user.plan) {
+    // Plan row missing (e.g. seed not run); return safe defaults
+    return {
+      maxAddedAdvertisers: user.maxAddedAdvertisers ?? 3,
+      maxFollowedAdvertisers: user.maxFollowedAdvertisers ?? 0,
+      refreshFrequency: user.refreshFrequency ?? "manual",
+    };
+  }
   return {
     maxAddedAdvertisers:
       user.maxAddedAdvertisers ?? user.plan.maxAddedAdvertisers,
@@ -35,33 +50,49 @@ export async function getUserPlanLimits(
   };
 }
 
-/** Can user add one more advertiser? Count = added + following. */
+const ADMIN_UNLIMITED = 999_999;
+
+/** Can user add one more advertiser? Count = added + following. Admins have unlimited. */
 export async function canAddAdvertiser(
   prisma: PrismaClient,
   userId: string
 ): Promise<LimitCheck> {
-  const limits = await getUserPlanLimits(prisma, userId);
-  if (!limits) return { allowed: false, current: 0, max: 0 };
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
   const current = await prisma.userAdvertiser.count({
     where: {
       userId,
       status: { in: ["added", "following"] },
     },
   });
+  if (user?.role === "admin") {
+    return { allowed: true, current, max: ADMIN_UNLIMITED };
+  }
+  const limits = await getUserPlanLimits(prisma, userId);
+  if (!limits) return { allowed: false, current, max: 0 };
   const max = limits.maxAddedAdvertisers;
   return { allowed: current < max, current, max };
 }
 
-/** Can user follow one more advertiser? Count = following only. */
+/** Can user follow one more advertiser? Count = following only. Admins have unlimited. */
 export async function canFollowAdvertiser(
   prisma: PrismaClient,
   userId: string
 ): Promise<LimitCheck> {
-  const limits = await getUserPlanLimits(prisma, userId);
-  if (!limits) return { allowed: false, current: 0, max: 0 };
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
   const current = await prisma.userAdvertiser.count({
     where: { userId, status: "following" },
   });
+  if (user?.role === "admin") {
+    return { allowed: true, current, max: ADMIN_UNLIMITED };
+  }
+  const limits = await getUserPlanLimits(prisma, userId);
+  if (!limits) return { allowed: false, current, max: 0 };
   const max = limits.maxFollowedAdvertisers;
   return { allowed: current < max, current, max };
 }

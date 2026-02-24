@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { auth } from "@clerk/nextjs/server";
 import { Prisma, prisma } from "@/lib/prisma";
 import { syncAllRunningRuns } from "@/lib/services/sync-scrape-run";
@@ -7,6 +8,7 @@ import { ExploreSearchSort } from "./ExploreSearchSort";
 import { ExploreAdCardWithModal } from "./ExploreAdCardWithModal";
 import { ExploreScrapingBanner } from "./ExploreScrapingBanner";
 import { ExploreFollowBanner } from "./ExploreFollowBanner";
+import { ExploreFetchingAdsBanner } from "./ExploreFetchingAdsBanner";
 import { FORMAT_LABELS, impressionsToNumber, getAdEstImpressions } from "./ad-card-utils";
 
 const PAGE_SIZE = 50;
@@ -16,6 +18,8 @@ const EXPLORE_MAX_ADS = 1000;
 type SearchParams = {
   sort?: string;
   advertisers?: string;
+  /** Single advertiser ID (used by Add modal redirect). Same as advertisers when one. */
+  advertiser?: string;
   formats?: string;
   minImpressions?: string;
   countries?: string;
@@ -63,7 +67,9 @@ export default async function ExplorePage({
   }
 
   const sort = params.sort ?? "date";
-  const advertiserIds = params.advertisers?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  const advertiserIds =
+    params.advertisers?.split(",").map((s) => s.trim()).filter(Boolean) ??
+    (params.advertiser?.trim() ? [params.advertiser.trim()] : []);
 
   const singleSelectedLink =
     dbUser && advertiserIds.length === 1
@@ -79,7 +85,8 @@ export default async function ExplorePage({
       : null;
   const showFollowBanner =
     singleSelectedLink?.status === "added" &&
-    singleSelectedLink.advertiser != null;
+    singleSelectedLink.advertiser != null &&
+    !!singleSelectedLink.advertiser.linkedinCompanyId?.trim();
   const formats = params.formats?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
   const minImpressions = params.minImpressions?.trim() ? parseInt(params.minImpressions, 10) : null;
   const countries = params.countries?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
@@ -340,15 +347,24 @@ export default async function ExplorePage({
 
   return (
     <div className="min-h-[calc(100vh-4rem)] font-[family-name:var(--font-geist-sans)] flex">
-      <ExploreFilters options={filterOptions} />
+      <Suspense fallback={<div className="w-64 shrink-0 border-r border-border bg-muted/20 animate-pulse rounded-r-lg" />}>
+        <ExploreFilters options={filterOptions} />
+      </Suspense>
       <main className="flex-1 min-w-0 px-6 py-8">
         <ExploreScrapingBanner />
-        {showFollowBanner && singleSelectedLink && (
-          <ExploreFollowBanner
-            userAdvertiserId={singleSelectedLink.id}
-            advertiserName={singleSelectedLink.advertiser.name ?? "—"}
-          />
-        )}
+        <Suspense fallback={null}>
+          {showFollowBanner && singleSelectedLink && (
+            <ExploreFollowBanner
+              userAdvertiserId={singleSelectedLink.id}
+              advertiserName={singleSelectedLink.advertiser.name ?? "—"}
+            />
+          )}
+          {advertiserIds.length === 1 && totalCount === 0 && singleSelectedLink && (
+            <ExploreFetchingAdsBanner
+              advertiserName={singleSelectedLink.advertiser.name ?? "this advertiser"}
+            />
+          )}
+        </Suspense>
         <div className="flex flex-col gap-4 mb-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h1 className="text-2xl font-semibold">Explore Ads</h1>
@@ -358,7 +374,9 @@ export default async function ExplorePage({
                 : `Showing ${(currentPage - 1) * PAGE_SIZE + 1}-${Math.min(currentPage * PAGE_SIZE, totalCount)} of ${totalCount}`}
             </p>
           </div>
-          <ExploreSearchSort sort={sort} hasCountryFilter={countries.length > 0} />
+          <Suspense fallback={null}>
+            <ExploreSearchSort sort={sort} hasCountryFilter={countries.length > 0} />
+          </Suspense>
         </div>
 
         {userAdvertisers.length === 0 ? (
@@ -374,9 +392,17 @@ export default async function ExplorePage({
             </Link>
           </div>
         ) : paginatedAds.length === 0 ? (
-          <p className="text-muted-foreground">
-            No ads match your filters yet. Try changing filters or add more advertisers.
-          </p>
+          <>
+            {advertiserIds.length === 1 && totalCount === 0 ? (
+              <p className="text-muted-foreground">
+                Ads will appear here once the first scrape has finished. The page refreshes automatically.
+              </p>
+            ) : (
+              <p className="text-muted-foreground">
+                No ads match your filters yet. Try changing filters or add more advertisers.
+              </p>
+            )}
+          </>
         ) : (
           <>
           {/* Wrapper caps content so 4 columns fit; ~400px per column with gap */}
@@ -410,7 +436,7 @@ export default async function ExplorePage({
           {totalCount > PAGE_SIZE && (() => {
             function exploreUrl(p: SearchParams, page: number): string {
               const q = new URLSearchParams();
-              if (p.advertisers) q.set("advertisers", p.advertisers);
+              if (p.advertisers) q.set("advertisers", p.advertisers); else if (p.advertiser) q.set("advertisers", p.advertiser);
               if (p.formats) q.set("formats", p.formats);
               if (p.minImpressions) q.set("minImpressions", p.minImpressions);
               if (p.countries) q.set("countries", p.countries);

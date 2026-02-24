@@ -80,6 +80,7 @@ export async function storeAds(
       await prisma.ad.update({
         where: { externalId: data.externalId },
         data: {
+          ...(data.startDate != null && { startDate: data.startDate }),
           endDate: data.endDate,
           impressions: data.impressions,
           impressionsPerCountry: data.impressionsPerCountry ?? undefined,
@@ -101,6 +102,7 @@ export async function storeAds(
         },
         update: isScheduled
           ? {
+              ...(data.startDate != null && { startDate: data.startDate }),
               endDate: data.endDate,
               impressions: data.impressions,
               impressionsPerCountry: data.impressionsPerCountry ?? undefined,

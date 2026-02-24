@@ -47,10 +47,13 @@ export type AdDetailApiResponse = {
     name: string | null;
     logoUrl: string | null;
     linkedinUrl: string | null;
+    linkedinCompanyId?: string | null;
   };
   collectionIds: string[];
   isFollowing: boolean;
   userAdvertiserId: string;
+  /** Follow button enabled only when true (linkedinCompanyId present). */
+  canFollow?: boolean;
 };
 
 function apiAdToExploreAd(api: AdDetailApiResponse): {
@@ -229,6 +232,8 @@ export function AdDetailModal({ adId, open, onOpenChange }: Props) {
                   isFollowing={data.isFollowing}
                   advertiserName={data.advertiser.name ?? ""}
                   onStateChange={() => {}}
+                  canFollow={data.canFollow !== false}
+                  disabledTooltip="Follow is available after the first scrape has completed."
                 />
               </div>
             </>

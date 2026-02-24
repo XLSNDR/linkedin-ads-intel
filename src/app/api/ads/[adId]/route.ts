@@ -64,7 +64,7 @@ export async function GET(
     where: { id: adId },
     include: {
       advertiser: {
-        select: { id: true, name: true, logoUrl: true, linkedinUrl: true },
+        select: { id: true, name: true, logoUrl: true, linkedinUrl: true, linkedinCompanyId: true },
       },
     },
   });
@@ -125,9 +125,11 @@ export async function GET(
       name: ad.advertiser.name,
       logoUrl: ad.advertiser.logoUrl,
       linkedinUrl: ad.advertiser.linkedinUrl,
+      linkedinCompanyId: ad.advertiser.linkedinCompanyId,
     },
     collectionIds,
     isFollowing: userAdvertiser.status === "following",
     userAdvertiserId: userAdvertiser.id,
+    canFollow: !!ad.advertiser.linkedinCompanyId?.trim(),
   });
 }

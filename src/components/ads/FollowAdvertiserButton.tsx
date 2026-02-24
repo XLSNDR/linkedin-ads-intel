@@ -9,18 +9,27 @@ type Props = {
   isFollowing: boolean;
   advertiserName: string;
   onStateChange?: (isFollowing: boolean) => void;
+  /** When false, Follow is disabled (e.g. linkedinCompanyId not yet available). Default true. */
+  canFollow?: boolean;
+  /** Tooltip when Follow is disabled. */
+  disabledTooltip?: string;
 };
+
+const DEFAULT_DISABLED_TOOLTIP = "Follow is available after the first scrape has completed.";
 
 export function FollowAdvertiserButton({
   userAdvertiserId,
   isFollowing: initialFollowing,
   advertiserName,
   onStateChange,
+  canFollow = true,
+  disabledTooltip = DEFAULT_DISABLED_TOOLTIP,
 }: Props) {
   const [isFollowing, setIsFollowing] = useState(initialFollowing);
   const [loading, setLoading] = useState(false);
 
   async function handleFollow() {
+    if (!canFollow) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/advertisers/${userAdvertiserId}/follow`, {
@@ -34,6 +43,8 @@ export function FollowAdvertiserButton({
         alert(
           `Follow limit reached (${data.current}/${data.max}). Upgrade your plan to follow more advertisers.`
         );
+      } else if (res.status === 400 && data.code === "COMPANY_ID_REQUIRED") {
+        alert(data.error ?? disabledTooltip);
       }
     } finally {
       setLoading(false);
@@ -83,8 +94,8 @@ export function FollowAdvertiserButton({
       type="button"
       size="sm"
       onClick={handleFollow}
-      disabled={loading}
-      title={followTooltip}
+      disabled={loading || !canFollow}
+      title={canFollow ? followTooltip : disabledTooltip}
     >
       {loading ? "Following…" : "Follow"}
     </Button>

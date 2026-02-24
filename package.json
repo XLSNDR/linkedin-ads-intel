@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
+    "test": "node --test --experimental-strip-types src/lib/__tests__/linkedin-ad-library-url.test.ts",
     "test:cron": "node scripts/test-cron.mjs"
   },
   "prisma": {
