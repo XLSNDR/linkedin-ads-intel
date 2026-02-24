@@ -1,31 +1,51 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-const REFRESH_INTERVAL_MS = 6000;
-const MAX_ATTEMPTS = 20; // ~2 minutes
+const POLL_INTERVAL_MS = 8000;
+const NO_NEW_ADS_DONE_MS = 2 * 60 * 1000;
 
 export function ExploreFetchingAdsBanner({
   advertiserName,
+  currentAdCount,
+  hasRunningScrape,
 }: {
   advertiserName: string;
+  currentAdCount: number;
+  hasRunningScrape: boolean;
 }) {
   const router = useRouter();
-  const attemptsRef = useRef(0);
+  const prevAdCountRef = useRef(-1);
+  const lastIncreaseAtRef = useRef(Date.now());
+  const [, setTick] = useState(0);
+
+  if (currentAdCount > prevAdCountRef.current) {
+    lastIncreaseAtRef.current = Date.now();
+    prevAdCountRef.current = currentAdCount;
+  }
+
+  const noNewAdsFor = Date.now() - lastIncreaseAtRef.current;
+  const considerDone =
+    !hasRunningScrape && noNewAdsFor >= NO_NEW_ADS_DONE_MS;
+  const considerDoneWithZero =
+    !hasRunningScrape && currentAdCount === 0 && noNewAdsFor >= NO_NEW_ADS_DONE_MS;
+  const showBanner =
+    hasRunningScrape ||
+    currentAdCount === 0 ||
+    (currentAdCount > 0 && !considerDone);
 
   useEffect(() => {
+    if (!showBanner) return;
     const t = setInterval(() => {
-      attemptsRef.current += 1;
-      if (attemptsRef.current >= MAX_ATTEMPTS) {
-        clearInterval(t);
-        return;
-      }
       router.refresh();
-    }, REFRESH_INTERVAL_MS);
+      setTick((n) => n + 1);
+    }, POLL_INTERVAL_MS);
     return () => clearInterval(t);
-  }, [router]);
+  }, [showBanner, router]);
+
+  if (!showBanner || considerDoneWithZero) return null;
 
   return (
     <div
@@ -34,8 +54,9 @@ export function ExploreFetchingAdsBanner({
       aria-live="polite"
     >
       <p className="text-muted-foreground">
-        Fetching ads for <strong className="text-foreground">{advertiserName}</strong>…
-        This usually takes 30–90 seconds. The page will update automatically.
+        Scrape in progress for <strong className="text-foreground">{advertiserName}</strong>
+        {currentAdCount > 0 ? ` — ${currentAdCount} ad${currentAdCount === 1 ? "" : "s"} so far.` : "…"}
+        The page updates every few seconds. The message will disappear when no new ads appear for 2 minutes.
       </p>
       <Button
         type="button"

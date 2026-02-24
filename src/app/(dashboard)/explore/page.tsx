@@ -83,6 +83,20 @@ export default async function ExplorePage({
           include: { advertiser: true },
         })
       : null;
+
+  const RUNNING_SCRAPE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+  const hasRunningScrape =
+    advertiserIds.length === 1
+      ? (await prisma.scrapeRun.findFirst({
+          where: {
+            advertiserId: advertiserIds[0],
+            status: "running",
+            startedAt: { gte: new Date(Date.now() - RUNNING_SCRAPE_MAX_AGE_MS) },
+          },
+          select: { id: true },
+        })) != null
+      : false;
+
   const showFollowBanner =
     singleSelectedLink?.status === "added" &&
     singleSelectedLink.advertiser != null &&
@@ -359,9 +373,11 @@ export default async function ExplorePage({
               advertiserName={singleSelectedLink.advertiser.name ?? "—"}
             />
           )}
-          {advertiserIds.length === 1 && totalCount === 0 && singleSelectedLink && (
+          {advertiserIds.length === 1 && singleSelectedLink && (
             <ExploreFetchingAdsBanner
               advertiserName={singleSelectedLink.advertiser.name ?? "this advertiser"}
+              currentAdCount={totalCount}
+              hasRunningScrape={hasRunningScrape}
             />
           )}
         </Suspense>
