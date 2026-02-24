@@ -100,7 +100,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Advertiser already in DB (e.g. Simplicate): just link to your list, no scrape
     const userAdvertiser = await prisma.userAdvertiser.create({
       data: {
         userId: user.id,
@@ -109,6 +108,70 @@ export async function POST(req: Request) {
       },
       include: { advertiser: true },
     });
+
+    // If existing advertiser has no ads or no company ID, start a scrape so user gets data (and we can set linkedinCompanyId from ad data)
+    const needsScrape =
+      (existingAdvertiser.totalAdsFound ?? 0) === 0 ||
+      !existingAdvertiser.linkedinCompanyId?.trim();
+    const scrapeUrl =
+      existingAdvertiser.linkedinUrl?.trim() || normalized;
+
+    if (needsScrape && scrapeUrl) {
+      const budgetCheck = await checkMonthlyBudget(prisma);
+      if (budgetCheck.ok) {
+        try {
+          const { runId, datasetId } = await startScrapeRun({
+            startUrls: [scrapeUrl],
+            resultsLimit: existingAdvertiser.resultsLimit ?? undefined,
+          });
+          await prisma.scrapeRun.create({
+            data: {
+              advertiserId: existingAdvertiser.id,
+              status: "running",
+              jobType: "initial",
+              apifyRunId: runId,
+              apifyDatasetId: datasetId,
+            },
+          });
+          return NextResponse.json({
+            advertiser: {
+              id: existingAdvertiser.id,
+              name: existingAdvertiser.name,
+              logoUrl: existingAdvertiser.logoUrl,
+              totalAdsFound: existingAdvertiser.totalAdsFound,
+            },
+            userAdvertiser: {
+              id: userAdvertiser.id,
+              status: userAdvertiser.status,
+            },
+            scrapeStatus: "started",
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(
+            "Add advertiser (existing) scrape start failed",
+            existingAdvertiser.id,
+            message
+          );
+          // Still return success with link; scrape can be retried via Follow or manual refresh
+          return NextResponse.json({
+            advertiser: {
+              id: existingAdvertiser.id,
+              name: existingAdvertiser.name,
+              logoUrl: existingAdvertiser.logoUrl,
+              totalAdsFound: existingAdvertiser.totalAdsFound,
+            },
+            userAdvertiser: {
+              id: userAdvertiser.id,
+              status: userAdvertiser.status,
+            },
+            scrapeStatus: "failed",
+            error: message,
+          });
+        }
+      }
+    }
+
     return NextResponse.json({
       advertiser: {
         id: existingAdvertiser.id,
