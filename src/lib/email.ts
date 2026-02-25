@@ -45,7 +45,7 @@ export async function sendApprovalEmail(
 `.trim();
 
   try {
-    const { data, error } = await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: FROM,
       to: [to],
       subject,
