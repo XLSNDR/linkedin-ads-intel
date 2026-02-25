@@ -4,8 +4,8 @@ export default function SignUpPage() {
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
       <SignUp
-        fallbackRedirectUrl="/"
-        forceRedirectUrl="/"
+        fallbackRedirectUrl="/pending"
+        forceRedirectUrl="/pending"
         signInUrl="/sign-in"
       />
     </div>
