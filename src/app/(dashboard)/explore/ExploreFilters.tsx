@@ -563,6 +563,7 @@ type SectionId =
   | "format"
   | "promotedBy"
   | "minImpressions"
+  | "minRuntime"
   | "country"
   | "language"
   | "cta";
@@ -594,6 +595,8 @@ export function ExploreFilters({
   const promotedBy = getParam(searchParams, "promotedBy");
   const minImpressions = searchParams.get("minImpressions") ?? "";
   const [minImpressionsInput, setMinImpressionsInput] = useState(minImpressions);
+  const minRuntime = searchParams.get("minRuntime") ?? "";
+  const [minRuntimeInput, setMinRuntimeInput] = useState(minRuntime);
   const countries = getParam(searchParams, "countries");
   const languages = getParam(searchParams, "languages");
   const ctas = getParam(searchParams, "ctas");
@@ -603,6 +606,7 @@ export function ExploreFilters({
     format: formats.length > 0,
     promotedBy: promotedBy.length > 0,
     minImpressions: minImpressions !== "",
+    minRuntime: minRuntime !== "",
     country: countries.length > 0,
     language: languages.length > 0,
     cta: ctas.length > 0,
@@ -644,12 +648,16 @@ export function ExploreFilters({
   useEffect(() => {
     setMinImpressionsInput(minImpressions);
   }, [minImpressions]);
+  useEffect(() => {
+    setMinRuntimeInput(minRuntime);
+  }, [minRuntime]);
 
   const hasAny =
     advertisers.length > 0 ||
     formats.length > 0 ||
     promotedBy.length > 0 ||
     minImpressions !== "" ||
+    minRuntime !== "" ||
     countries.length > 0 ||
     languages.length > 0 ||
     ctas.length > 0;
@@ -764,6 +772,46 @@ export function ExploreFilters({
             onClick={() =>
               update({
                 minImpressions: minImpressionsInput.trim(),
+              })
+            }
+            className="shrink-0 rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Filter
+          </button>
+        </div>
+      </FilterSection>
+
+      {/* Min. Runtime: same UX as Min. Est. Impressions (days) */}
+      <FilterSection
+        id="minRuntime"
+        title="Min. Runtime"
+        open={isSectionOpen("minRuntime")}
+        onToggle={() => toggleSection("minRuntime")}
+      >
+        <div className="flex gap-2">
+          <input
+            type="number"
+            min={0}
+            value={minRuntimeInput}
+            onChange={(e) =>
+              setMinRuntimeInput(e.target.value.replace(/\D/g, ""))
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                update({
+                  minRuntime: minRuntimeInput.trim(),
+                });
+              }
+            }}
+            placeholder="e.g. 30"
+            className="flex-1 min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            aria-label="Min. Runtime (days)"
+          />
+          <button
+            type="button"
+            onClick={() =>
+              update({
+                minRuntime: minRuntimeInput.trim(),
               })
             }
             className="shrink-0 rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"

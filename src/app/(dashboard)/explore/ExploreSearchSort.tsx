@@ -156,7 +156,7 @@ export function ExploreSearchSort({
   const placeholder =
     searchMode === "url"
       ? "Search by URL (e.g. linkedin.com/...)"
-      : "Search ads by meaning... (e.g. fitness products)";
+      : "Search ads by keyword...";
 
   const hasDateFilter = startDateParam !== "" || endDateParam !== "";
 
@@ -220,7 +220,7 @@ export function ExploreSearchSort({
           aria-expanded={dateOpen}
           aria-haspopup="dialog"
         >
-          Date
+          Date range
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
             <path d="m6 9 6 6 6-6" />
           </svg>

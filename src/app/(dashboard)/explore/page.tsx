@@ -12,8 +12,8 @@ import { ExploreFetchingAdsBanner } from "./ExploreFetchingAdsBanner";
 import { FORMAT_LABELS, impressionsToNumber, getAdEstImpressions } from "./ad-card-utils";
 
 const PAGE_SIZE = 50;
-/** Max ads to load from DB per request. Lower = faster Explore load; use filters to narrow results. */
-const EXPLORE_MAX_ADS = 1000;
+/** Load this many ads (minimal select) to compute totals, sidebar counts, and pagination. Correct totals up to this cap. */
+const FILTER_POOL_SIZE = 20_000;
 
 type SearchParams = {
   sort?: string;
@@ -22,6 +22,7 @@ type SearchParams = {
   advertiser?: string;
   formats?: string;
   minImpressions?: string;
+  minRuntime?: string;
   countries?: string;
   languages?: string;
   promotedBy?: string;
@@ -66,7 +67,7 @@ export default async function ExplorePage({
     }
   }
 
-  const sort = params.sort ?? "date";
+  const sort = params.sort ?? "impressions";
   const advertiserIds =
     params.advertisers?.split(",").map((s) => s.trim()).filter(Boolean) ??
     (params.advertiser?.trim() ? [params.advertiser.trim()] : []);
@@ -103,6 +104,7 @@ export default async function ExplorePage({
     !!singleSelectedLink.advertiser.linkedinCompanyId?.trim();
   const formats = params.formats?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
   const minImpressions = params.minImpressions?.trim() ? parseInt(params.minImpressions, 10) : null;
+  const minRuntime = params.minRuntime?.trim() ? parseInt(params.minRuntime, 10) : null;
   const countries = params.countries?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
   const languages = params.languages?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
   const promotedBy = params.promotedBy?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
@@ -154,8 +156,6 @@ export default async function ExplorePage({
 
   // Probe: does DB have thoughtLeaderMemberImageUrl? (avoids error on local when migration not applied)
   let hasThoughtLeaderColumn = false;
-  type FormatOptionRow = { format: string | null; countryImpressionsEstimate: unknown; impressionsEstimate: number | null; impressions: string | null; thoughtLeaderMemberImageUrl?: string | null };
-  let adsForFormatOptions: FormatOptionRow[];
   try {
     await prisma.ad.findMany({
       where: Object.keys(whereNoFormat).length > 0 ? whereNoFormat : undefined,
@@ -166,24 +166,6 @@ export default async function ExplorePage({
   } catch {
     hasThoughtLeaderColumn = false;
   }
-  adsForFormatOptions = await prisma.ad.findMany({
-    where: Object.keys(whereNoFormat).length > 0 ? whereNoFormat : undefined,
-    select: hasThoughtLeaderColumn
-      ? {
-          format: true,
-          countryImpressionsEstimate: true,
-          impressionsEstimate: true,
-          impressions: true,
-          thoughtLeaderMemberImageUrl: true,
-        }
-      : {
-          format: true,
-          countryImpressionsEstimate: true,
-          impressionsEstimate: true,
-          impressions: true,
-        },
-    take: EXPLORE_MAX_ADS,
-  });
 
   const whereConditions: Prisma.AdWhereInput[] = [...whereConditionsNoFormat];
   if (formats.length) whereConditions.push({ format: { in: formats } });
@@ -205,56 +187,74 @@ export default async function ExplorePage({
 
   const where: Prisma.AdWhereInput = whereConditions.length ? { AND: whereConditions } : {};
 
-  const orderBy =
-    sort === "runtime"
-      ? { startDate: "asc" as const }
-      : sort === "date"
-        ? { startDate: "desc" as const }
-        : { lastSeenAt: "desc" as const };
+  type PoolRow = {
+    id: string;
+    startDate: Date | null;
+    endDate: Date | null;
+    lastSeenAt: Date | null;
+    impressionsEstimate: number | null;
+    impressions: string | null;
+    countryImpressionsEstimate: unknown;
+    format: string | null;
+    thoughtLeaderMemberImageUrl?: string | null;
+    advertiserId: string;
+    targetLanguage: string | null;
+    callToAction: string | null;
+    advertiser: { id: string; name: string | null; logoUrl: string | null };
+  };
 
-  let ads = await prisma.ad.findMany({
+  const poolSelect = {
+    id: true,
+    startDate: true,
+    endDate: true,
+    lastSeenAt: true,
+    impressionsEstimate: true,
+    impressions: true,
+    countryImpressionsEstimate: true,
+    format: true,
+    advertiserId: true,
+    targetLanguage: true,
+    callToAction: true,
+    advertiser: { select: { id: true, name: true, logoUrl: true } },
+    ...(hasThoughtLeaderColumn && { thoughtLeaderMemberImageUrl: true }),
+  } as const;
+
+  const pool = await prisma.ad.findMany({
     where,
-    include: {
-      advertiser: true,
-      ...(dbUser && {
-        collectionAds: {
-          where: { collection: { userId: dbUser.id } },
-          select: { collectionId: true },
-        },
-      }),
-    },
-    orderBy,
-    take: EXPLORE_MAX_ADS,
-  });
+    select: poolSelect,
+    take: FILTER_POOL_SIZE,
+  }) as PoolRow[];
+
+  function runtimeDays(ad: { startDate: Date | null; endDate: Date | null; lastSeenAt: Date | null }): number {
+    const end = ad.endDate ?? ad.lastSeenAt;
+    if (!ad.startDate || !end) return 0;
+    return Math.round((end.getTime() - ad.startDate.getTime()) / (24 * 60 * 60 * 1000));
+  }
+
+  let filtered = pool;
 
   if (countries.length > 0) {
-    ads = ads.filter((ad) => {
-      const est = ad.countryImpressionsEstimate as Record<string, unknown> | null;
-      if (!est || typeof est !== "object") return false;
-      return countries.some((c) => c in est);
-    });
-    adsForFormatOptions = adsForFormatOptions.filter((ad) => {
+    filtered = filtered.filter((ad) => {
       const est = ad.countryImpressionsEstimate as Record<string, unknown> | null;
       if (!est || typeof est !== "object") return false;
       return countries.some((c) => c in est);
     });
   }
 
-  // Apply Min. Est. Impressions filter in-memory using the same logic as display/sort
   if (minImpressions != null && !Number.isNaN(minImpressions)) {
-    ads = ads.filter((ad) => {
+    filtered = filtered.filter((ad) => {
       const est = getAdEstImpressions(ad, countries, impressionsToNumber);
       return est >= minImpressions;
     });
-    adsForFormatOptions = adsForFormatOptions.filter((ad) => {
-      const est = getAdEstImpressions(ad, countries, impressionsToNumber);
-      return est >= minImpressions;
-    });
+  }
+
+  if (minRuntime != null && !Number.isNaN(minRuntime) && minRuntime >= 0) {
+    filtered = filtered.filter((ad) => runtimeDays(ad) >= minRuntime);
   }
 
   if (sort === "impressions") {
     const countryForSort = countries[0] ?? null;
-    ads = [...ads].sort((a, b) => {
+    filtered = [...filtered].sort((a, b) => {
       const estA = countryForSort
         ? (a.countryImpressionsEstimate as Record<string, number> | null)?.[countryForSort] ?? 0
         : (a.impressionsEstimate ?? impressionsToNumber(a.impressions));
@@ -263,34 +263,46 @@ export default async function ExplorePage({
         : (b.impressionsEstimate ?? impressionsToNumber(b.impressions));
       return estB - estA;
     });
-  }
-  if (sort === "runtime") {
-    ads = [...ads].sort((a, b) => {
-      const endA = a.endDate ?? a.lastSeenAt;
-      const endB = b.endDate ?? b.lastSeenAt;
-      const daysA =
-        a.startDate && endA
-          ? Math.round(
-              (endA.getTime() - a.startDate.getTime()) / (24 * 60 * 60 * 1000)
-            )
-          : 0;
-      const daysB =
-        b.startDate && endB
-          ? Math.round(
-              (endB.getTime() - b.startDate.getTime()) / (24 * 60 * 60 * 1000)
-            )
-          : 0;
+  } else if (sort === "runtime") {
+    filtered = [...filtered].sort((a, b) => {
+      const daysA = runtimeDays(a);
+      const daysB = runtimeDays(b);
       return daysB - daysA;
+    });
+  } else {
+    filtered = [...filtered].sort((a, b) => {
+      const aStart = a.startDate?.getTime() ?? 0;
+      const bStart = b.startDate?.getTime() ?? 0;
+      return bStart - aStart;
     });
   }
 
-  const totalCount = ads.length;
+  const totalCount = filtered.length;
   const maxPage = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const currentPage = Math.min(Math.max(1, pageNum), maxPage);
   const start = (currentPage - 1) * PAGE_SIZE;
-  const paginatedAds = ads.slice(start, start + PAGE_SIZE);
+  const pageIds = filtered.slice(start, start + PAGE_SIZE).map((a) => a.id);
 
-  // Filter options for sidebar – advertisers/countries/languages/ctas from filtered ads; formats from ads without format filter (so multi-select shows all formats)
+  let paginatedAds: Awaited<ReturnType<typeof prisma.ad.findMany>>;
+  if (pageIds.length === 0) {
+    paginatedAds = [];
+  } else {
+    const fullAds = await prisma.ad.findMany({
+      where: { id: { in: pageIds } },
+      include: {
+        advertiser: true,
+        ...(dbUser && {
+          collectionAds: {
+            where: { collection: { userId: dbUser.id } },
+            select: { collectionId: true },
+          },
+        }),
+      },
+    });
+    const orderByPageIds = new Map(pageIds.map((id, i) => [id, i]));
+    paginatedAds = fullAds.slice().sort((a, b) => (orderByPageIds.get(a.id) ?? 0) - (orderByPageIds.get(b.id) ?? 0));
+  }
+
   const advertiserMap = new Map<
     string,
     { id: string; name: string; logoUrl: string | null; status?: "following" | "added" }
@@ -302,13 +314,15 @@ export default async function ExplorePage({
   let promotedByThoughtLeader = 0;
   let promotedByCompanyPage = 0;
 
-  for (const ad of adsForFormatOptions) {
+  for (const ad of filtered) {
     if (ad.format) {
       formatCountMap[ad.format] = (formatCountMap[ad.format] ?? 0) + 1;
     }
-  }
-
-  for (const ad of ads) {
+    if (ad.thoughtLeaderMemberImageUrl && ad.thoughtLeaderMemberImageUrl.trim()) {
+      promotedByThoughtLeader++;
+    } else {
+      promotedByCompanyPage++;
+    }
     if (ad.advertiser) {
       if (!advertiserMap.has(ad.advertiser.id)) {
         const status = userAdvertiserStatusMap.get(ad.advertiser.id);
@@ -328,13 +342,6 @@ export default async function ExplorePage({
     }
     if (ad.targetLanguage) languageSet.add(ad.targetLanguage);
     if (ad.callToAction) ctaSet.add(ad.callToAction);
-  }
-  for (const ad of adsForFormatOptions) {
-    if (ad.thoughtLeaderMemberImageUrl && ad.thoughtLeaderMemberImageUrl.trim()) {
-      promotedByThoughtLeader++;
-    } else {
-      promotedByCompanyPage++;
-    }
   }
 
   const advertisersWithAds = Array.from(advertiserMap.values()).sort((a, b) => {
@@ -455,6 +462,7 @@ export default async function ExplorePage({
               if (p.advertisers) q.set("advertisers", p.advertisers); else if (p.advertiser) q.set("advertisers", p.advertiser);
               if (p.formats) q.set("formats", p.formats);
               if (p.minImpressions) q.set("minImpressions", p.minImpressions);
+              if (p.minRuntime) q.set("minRuntime", p.minRuntime);
               if (p.countries) q.set("countries", p.countries);
               if (p.languages) q.set("languages", p.languages);
               if (p.promotedBy) q.set("promotedBy", p.promotedBy);
