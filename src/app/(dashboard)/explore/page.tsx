@@ -225,11 +225,11 @@ export default async function ExplorePage({
     take: FILTER_POOL_SIZE,
   }) as PoolRow[];
 
-  function runtimeDays(ad: { startDate: Date | null; endDate: Date | null; lastSeenAt: Date | null }): number {
+  const runtimeDays = (ad: { startDate: Date | null; endDate: Date | null; lastSeenAt: Date | null }): number => {
     const end = ad.endDate ?? ad.lastSeenAt;
     if (!ad.startDate || !end) return 0;
     return Math.round((end.getTime() - ad.startDate.getTime()) / (24 * 60 * 60 * 1000));
-  }
+  };
 
   let filtered = pool;
 
@@ -457,7 +457,7 @@ export default async function ExplorePage({
           </div>
 
           {totalCount > PAGE_SIZE && (() => {
-            function exploreUrl(p: SearchParams, page: number): string {
+            const exploreUrl = (p: SearchParams, page: number): string => {
               const q = new URLSearchParams();
               if (p.advertisers) q.set("advertisers", p.advertisers); else if (p.advertiser) q.set("advertisers", p.advertiser);
               if (p.formats) q.set("formats", p.formats);
@@ -475,7 +475,7 @@ export default async function ExplorePage({
               if (page > 1) q.set("page", String(page));
               const s = q.toString();
               return s ? `/explore?${s}` : "/explore";
-            }
+            };
             const prevUrl = currentPage > 1 ? exploreUrl(params, currentPage - 1) : null;
             const nextUrl = currentPage < maxPage ? exploreUrl(params, currentPage + 1) : null;
             const pages: number[] = [];
