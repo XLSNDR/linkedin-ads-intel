@@ -283,7 +283,11 @@ export default async function ExplorePage({
   const start = (currentPage - 1) * PAGE_SIZE;
   const pageIds = filtered.slice(start, start + PAGE_SIZE).map((a) => a.id);
 
-  let paginatedAds: Awaited<ReturnType<typeof prisma.ad.findMany>>;
+  type AdWithAdvertiser = Prisma.AdGetPayload<{ include: { advertiser: true } }> & {
+    collectionAds?: { collectionId: string }[];
+  };
+
+  let paginatedAds: AdWithAdvertiser[];
   if (pageIds.length === 0) {
     paginatedAds = [];
   } else {
@@ -300,7 +304,7 @@ export default async function ExplorePage({
       },
     });
     const orderByPageIds = new Map(pageIds.map((id, i) => [id, i]));
-    paginatedAds = fullAds.slice().sort((a, b) => (orderByPageIds.get(a.id) ?? 0) - (orderByPageIds.get(b.id) ?? 0));
+    paginatedAds = fullAds.slice().sort((a, b) => (orderByPageIds.get(a.id) ?? 0) - (orderByPageIds.get(b.id) ?? 0)) as AdWithAdvertiser[];
   }
 
   const advertiserMap = new Map<
