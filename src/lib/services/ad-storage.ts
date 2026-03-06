@@ -38,7 +38,7 @@ export async function checkMonthlyBudget(
 import type { ApifyAd } from "@/lib/apify/types";
 import { transformApifyAd } from "@/lib/apify/transform";
 import { extractCompanyIdFromAdvertiserUrl } from "@/lib/utils/linkedin-url";
-import type { LinkedInScrapeResult, NormalizedAd } from "@/lib/scrapers/types";
+import type { LinkedInScrapeResult } from "@/lib/scrapers/types";
 import {
   parseImpressionsRangeToMidpoint,
   computeCountryImpressionsEstimate,

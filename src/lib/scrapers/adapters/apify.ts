@@ -95,6 +95,7 @@ function toNormalizedAdvertiser(first: ApifyAd): NormalizedAdvertiser {
 }
 
 export class ApifyAdapter {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- adapter interface requires options param; Apify does not use it
   async scrape(linkedinCompanyUrl: string, _options?: unknown): Promise<LinkedInScrapeResult> {
     const url = linkedinCompanyUrl.trim();
     if (!url) throw new Error("linkedinCompanyUrl is required");
