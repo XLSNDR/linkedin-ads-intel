@@ -109,6 +109,8 @@ export async function GET(
     mediaUrl: ad.mediaUrl,
     mediaData: ad.mediaData,
     thoughtLeaderMemberImageUrl: ad.thoughtLeaderMemberImageUrl,
+    poster: ad.poster,
+    posterTitle: ad.posterTitle,
     startDate: ad.startDate?.toISOString() ?? null,
     endDate: ad.endDate?.toISOString() ?? null,
     impressions: ad.impressions,

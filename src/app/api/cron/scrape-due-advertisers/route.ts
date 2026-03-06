@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { startScrapeRun } from "@/lib/apify/client";
-import { checkMonthlyBudget } from "@/lib/services/ad-storage";
+import { checkMonthlyBudget, storeNormalizedResult } from "@/lib/services/ad-storage";
 import { buildAdLibrarySearchUrl, frequencyToWindow } from "@/lib/linkedin-ad-library-url";
+import { getLinkedInScraper } from "@/lib/scrapers";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,9 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  const settings = await prisma.settings.findFirst();
+  const useScrapeCreators = settings?.linkedinScraper === "scrapecreators";
+
   const results: { advertiserId: string; started?: boolean; error?: string }[] = [];
 
   for (const advertiser of due) {
@@ -61,6 +65,51 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+      if (useScrapeCreators) {
+        const companyUrl =
+          advertiser.linkedinUrl?.trim() ||
+          (advertiser.linkedinCompanyId
+            ? `https://www.linkedin.com/company/${advertiser.linkedinCompanyId}/`
+            : null);
+        if (!companyUrl) {
+          results.push({
+            advertiserId: advertiser.id,
+            error: "no linkedinUrl or linkedinCompanyId",
+          });
+          continue;
+        }
+        const scraper = await getLinkedInScraper();
+        const result = await scraper.scrape(companyUrl);
+        await storeNormalizedResult(
+          prisma,
+          advertiser.id,
+          result,
+          "scheduled"
+        );
+        const next = new Date();
+        const freq = advertiser.scrapeFrequency?.toLowerCase();
+        if (freq === "weekly") next.setDate(next.getDate() + 7);
+        else if (freq === "monthly") next.setDate(next.getDate() + 30);
+        await prisma.advertiser.update({
+          where: { id: advertiser.id },
+          data: {
+            lastScrapedAt: new Date(),
+            ...(freq === "weekly" || freq === "monthly" ? { nextScrapeAt: next } : {}),
+          },
+        });
+        await prisma.scrapeRun.create({
+          data: {
+            advertiserId: advertiser.id,
+            status: "completed",
+            jobType: "scheduled",
+            adsFound: result.ads.length,
+            completedAt: new Date(),
+          },
+        });
+        results.push({ advertiserId: advertiser.id, started: true });
+        continue;
+      }
+
       const hasFollowers =
         advertiser.userAdvertisers != null &&
         advertiser.userAdvertisers.length > 0;

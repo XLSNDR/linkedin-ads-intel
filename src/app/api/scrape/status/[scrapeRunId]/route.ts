@@ -32,9 +32,21 @@ export async function GET(
       { status: 404 }
     );
   }
+
+  // ScrapeCreators (and other non-Apify scrapes) complete immediately and have no apifyRunId
   if (!scrapeRun.apifyRunId) {
+    if (scrapeRun.status === "completed") {
+      return NextResponse.json({
+        status: "completed",
+        adsFound: scrapeRun.adsFound ?? 0,
+        adsNew: scrapeRun.adsNew ?? 0,
+        adsUpdated: scrapeRun.adsUpdated ?? 0,
+        costUsd: scrapeRun.costUsd ?? undefined,
+        runStatus: "SUCCEEDED",
+      });
+    }
     return NextResponse.json(
-      { error: "Scrape run has no Apify run id" },
+      { error: "This scrape run does not support status polling (e.g. ScrapeCreators runs complete immediately)." },
       { status: 400 }
     );
   }

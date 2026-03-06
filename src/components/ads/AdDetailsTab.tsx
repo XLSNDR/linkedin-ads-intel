@@ -9,6 +9,7 @@ import {
   Image,
   Link as LinkIcon,
   MapPin,
+  User,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -28,6 +29,8 @@ export type AdDetailData = {
   targetLocation: string | null;
   destinationUrl: string | null;
   paidBy: string | null;
+  poster: string | null;
+  posterTitle: string | null;
   advertiserName: string | null;
 };
 
@@ -162,6 +165,15 @@ export function AdDetailsTab({ ad }: { ad: AdDetailData }) {
       )}
       {showPaidBy && (
         <Row icon={Wallet} label="Paid By" value={ad.paidBy!} />
+      )}
+      {(ad.poster?.trim() || ad.posterTitle?.trim()) && (
+        <Row
+          icon={User}
+          label="Poster"
+          value={
+            [ad.poster?.trim(), ad.posterTitle?.trim()].filter(Boolean).join(" · ") || "—"
+          }
+        />
       )}
     </div>
   );

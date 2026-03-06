@@ -109,6 +109,13 @@ async function main() {
   }
 
   console.log("Seeded plans:", plans.map((p) => p.name).join(", "));
+
+  await prisma.settings.upsert({
+    where: { id: "global" },
+    update: {},
+    create: { id: "global", linkedinScraper: "apify" },
+  });
+  console.log("Seeded settings: global (linkedinScraper=apify)");
 }
 
 main()

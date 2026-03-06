@@ -32,15 +32,24 @@ export interface TransformedAd {
   impressionsPerCountry: object | null;
   thoughtLeaderMemberUrl: string | null;
   thoughtLeaderMemberImageUrl: string | null;
+  poster: string | null;
+  posterTitle: string | null;
   lastSeenAt: Date;
 }
 
 /** Resolve external id (Apify actor may use id or adId; may be string or number) */
-function getExternalId(raw: ApifyAd): string | null {
+export function getExternalId(raw: ApifyAd): string | null {
   const id = raw.adId ?? raw.id;
   if (id == null) return null;
   const s = typeof id === "string" ? id.trim() : String(id).trim();
   return s === "" ? null : s;
+}
+
+/** Extract first URL from text (e.g. body); used when Apify does not send clickUrl for message/article ads */
+export function extractFirstUrlFromText(text: string | null | undefined): string | null {
+  if (!text || typeof text !== "string") return null;
+  const match = text.match(/https?:\/\/[^\s<>"']+/i);
+  return match ? match[0].trim() : null;
 }
 
 export function transformApifyAd(raw: ApifyAd, advertiserId: string): TransformedAd | null {
@@ -54,7 +63,12 @@ export function transformApifyAd(raw: ApifyAd, advertiserId: string): Transforme
     bodyText: raw.body ?? null,
     headline: raw.headline ?? null,
     callToAction: raw.ctas?.[0] ?? null,
-    destinationUrl: raw.clickUrl ?? null,
+    destinationUrl:
+      raw.clickUrl?.trim() ||
+      (raw.format === "MESSAGE" || raw.format === "LINKEDIN_ARTICLE" || raw.format === "SPONSORED_UPDATE_LINKEDIN_ARTICLE"
+        ? extractFirstUrlFromText(raw.body)
+        : null) ||
+      null,
     mediaUrl: getMediaUrl(raw),
     mediaData: getMediaData(raw),
     startDate: raw.availability?.start ? new Date(raw.availability.start) : null,
@@ -74,10 +88,14 @@ export function transformApifyAd(raw: ApifyAd, advertiserId: string): Transforme
     })(),
     targetLanguage: raw.targeting?.language ?? null,
     targetLocation: raw.targeting?.location ?? null,
-    paidBy: raw.paidBy ?? null,
+    paidBy: (raw.thoughtLeaderMemberName?.trim() || raw.thoughtLeaderMemberJobtitle?.trim())
+      ? "Thought leader"
+      : (raw.paidBy ?? null),
     impressionsPerCountry: raw.impressionsPerCountry ?? null,
     thoughtLeaderMemberUrl: raw.thoughtLeaderMemberUrl?.trim() ? raw.thoughtLeaderMemberUrl.trim() : null,
     thoughtLeaderMemberImageUrl: raw.thoughtLeaderMemberImageUrl?.trim() ? raw.thoughtLeaderMemberImageUrl.trim() : null,
+    poster: raw.thoughtLeaderMemberName?.trim() ?? null,
+    posterTitle: raw.thoughtLeaderMemberJobtitle?.trim() ?? null,
     lastSeenAt: new Date(),
   };
 }
@@ -101,7 +119,7 @@ function getCarouselSlides(raw: ApifyAd): Array<{ imageUrl: string; title?: stri
   return out;
 }
 
-function getMediaUrl(raw: ApifyAd): string | null {
+export function getMediaUrl(raw: ApifyAd): string | null {
   switch (raw.format) {
     case "SINGLE_IMAGE":
       return raw.imageUrl ?? null;
@@ -132,7 +150,7 @@ function getMediaUrl(raw: ApifyAd): string | null {
   }
 }
 
-function getMediaData(raw: ApifyAd): object | null {
+export function getMediaData(raw: ApifyAd): object | null {
   switch (raw.format) {
     case "CAROUSEL":
       return { slides: getCarouselSlides(raw) };

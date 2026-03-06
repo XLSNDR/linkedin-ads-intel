@@ -169,19 +169,36 @@ export default async function ExplorePage({
 
   const whereConditions: Prisma.AdWhereInput[] = [...whereConditionsNoFormat];
   if (formats.length) whereConditions.push({ format: { in: formats } });
+  // Thought leader: Apify sets thoughtLeaderMemberImageUrl; ScrapeCreators sets posterTitle only for thought leader ads
   if (hasThoughtLeaderColumn && promotedBy.length === 1) {
     if (promotedBy[0] === "thought_leader") {
-      whereConditions.push({ thoughtLeaderMemberImageUrl: { not: null } });
+      whereConditions.push({
+        OR: [
+          { thoughtLeaderMemberImageUrl: { not: null } },
+          { posterTitle: { not: null } },
+        ],
+      });
     } else if (promotedBy[0] === "company_page") {
-      whereConditions.push({ thoughtLeaderMemberImageUrl: null });
+      whereConditions.push({
+        thoughtLeaderMemberImageUrl: null,
+        posterTitle: null,
+      });
     }
   } else if (hasThoughtLeaderColumn && promotedBy.length === 2 && promotedBy.includes("thought_leader") && promotedBy.includes("company_page")) {
     // both selected = no filter
   } else if (hasThoughtLeaderColumn && promotedBy.length > 0) {
     if (promotedBy.includes("thought_leader") && !promotedBy.includes("company_page")) {
-      whereConditions.push({ thoughtLeaderMemberImageUrl: { not: null } });
+      whereConditions.push({
+        OR: [
+          { thoughtLeaderMemberImageUrl: { not: null } },
+          { posterTitle: { not: null } },
+        ],
+      });
     } else if (promotedBy.includes("company_page") && !promotedBy.includes("thought_leader")) {
-      whereConditions.push({ thoughtLeaderMemberImageUrl: null });
+      whereConditions.push({
+        thoughtLeaderMemberImageUrl: null,
+        posterTitle: null,
+      });
     }
   }
 
@@ -197,6 +214,8 @@ export default async function ExplorePage({
     countryImpressionsEstimate: unknown;
     format: string | null;
     thoughtLeaderMemberImageUrl?: string | null;
+    poster?: string | null;
+    posterTitle?: string | null;
     advertiserId: string;
     targetLanguage: string | null;
     callToAction: string | null;
@@ -216,7 +235,7 @@ export default async function ExplorePage({
     targetLanguage: true,
     callToAction: true,
     advertiser: { select: { id: true, name: true, logoUrl: true } },
-    ...(hasThoughtLeaderColumn && { thoughtLeaderMemberImageUrl: true }),
+    ...(hasThoughtLeaderColumn && { thoughtLeaderMemberImageUrl: true, poster: true, posterTitle: true }),
   } as const;
 
   const pool = await prisma.ad.findMany({
@@ -322,7 +341,10 @@ export default async function ExplorePage({
     if (ad.format) {
       formatCountMap[ad.format] = (formatCountMap[ad.format] ?? 0) + 1;
     }
-    if (ad.thoughtLeaderMemberImageUrl && ad.thoughtLeaderMemberImageUrl.trim()) {
+    const isThoughtLeader =
+      (ad.thoughtLeaderMemberImageUrl && ad.thoughtLeaderMemberImageUrl.trim()) ||
+      (ad.posterTitle && ad.posterTitle.trim());
+    if (isThoughtLeader) {
       promotedByThoughtLeader++;
     } else {
       promotedByCompanyPage++;

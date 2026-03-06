@@ -82,20 +82,22 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
   if (ctas.length > 0) {
     ads = ads.filter((ad) => ad.callToAction && ctas.includes(ad.callToAction));
   }
+  const isThoughtLeaderAd = (ad: { thoughtLeaderMemberImageUrl?: string | null; posterTitle?: string | null }) =>
+    Boolean(ad.thoughtLeaderMemberImageUrl?.trim() || ad.posterTitle?.trim());
   if (promotedBy.length === 1) {
     if (promotedBy[0] === "thought_leader") {
-      ads = ads.filter((ad) => (ad as { thoughtLeaderMemberImageUrl?: string | null }).thoughtLeaderMemberImageUrl?.trim());
+      ads = ads.filter((ad) => isThoughtLeaderAd(ad as { thoughtLeaderMemberImageUrl?: string | null; posterTitle?: string | null }));
     } else if (promotedBy[0] === "company_page") {
-      ads = ads.filter((ad) => !(ad as { thoughtLeaderMemberImageUrl?: string | null }).thoughtLeaderMemberImageUrl?.trim());
+      ads = ads.filter((ad) => !isThoughtLeaderAd(ad as { thoughtLeaderMemberImageUrl?: string | null; posterTitle?: string | null }));
     }
   }
   if (promotedBy.length === 2 && promotedBy.includes("thought_leader") && promotedBy.includes("company_page")) {
     // both = no filter
   } else if (promotedBy.length > 0) {
     if (promotedBy.includes("thought_leader") && !promotedBy.includes("company_page")) {
-      ads = ads.filter((ad) => (ad as { thoughtLeaderMemberImageUrl?: string | null }).thoughtLeaderMemberImageUrl?.trim());
+      ads = ads.filter((ad) => isThoughtLeaderAd(ad as { thoughtLeaderMemberImageUrl?: string | null; posterTitle?: string | null }));
     } else if (promotedBy.includes("company_page") && !promotedBy.includes("thought_leader")) {
-      ads = ads.filter((ad) => !(ad as { thoughtLeaderMemberImageUrl?: string | null }).thoughtLeaderMemberImageUrl?.trim());
+      ads = ads.filter((ad) => !isThoughtLeaderAd(ad as { thoughtLeaderMemberImageUrl?: string | null; posterTitle?: string | null }));
     }
   }
   if (startDateParam && endDateParam) {
@@ -200,8 +202,10 @@ export default async function CollectionDetailPage({ params, searchParams }: Pro
     }
     if (ad.targetLanguage) languageSet.add(ad.targetLanguage);
     if (ad.callToAction) ctaSet.add(ad.callToAction);
-    const tl = (ad as { thoughtLeaderMemberImageUrl?: string | null }).thoughtLeaderMemberImageUrl;
-    if (tl?.trim()) promotedByThoughtLeader++;
+    const isTl =
+      (ad as { thoughtLeaderMemberImageUrl?: string | null; posterTitle?: string | null }).thoughtLeaderMemberImageUrl?.trim() ||
+      (ad as { thoughtLeaderMemberImageUrl?: string | null; posterTitle?: string | null }).posterTitle?.trim();
+    if (isTl) promotedByThoughtLeader++;
     else promotedByCompanyPage++;
   }
 

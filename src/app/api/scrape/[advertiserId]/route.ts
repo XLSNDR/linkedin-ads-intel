@@ -2,7 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { startScrapeRun } from "@/lib/apify/client";
-import { checkMonthlyBudget } from "@/lib/services/ad-storage";
+import { checkMonthlyBudget, storeNormalizedResult } from "@/lib/services/ad-storage";
+import { getLinkedInScraper } from "@/lib/scrapers";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,47 @@ export async function POST(
   }
 
   try {
+    const settings = await prisma.settings.findFirst();
+    const useScrapeCreators = settings?.linkedinScraper === "scrapecreators";
+
+    if (useScrapeCreators) {
+      const scraper = await getLinkedInScraper();
+      const companyUrl =
+        advertiser.linkedinUrl?.trim() ||
+        (advertiser.linkedinCompanyId
+          ? `https://www.linkedin.com/company/${advertiser.linkedinCompanyId}/`
+          : null);
+      if (!companyUrl) {
+        return NextResponse.json(
+          { error: "Advertiser has no linkedinUrl or linkedinCompanyId" },
+          { status: 400 }
+        );
+      }
+      const result = await scraper.scrape(companyUrl);
+      const storeResult = await storeNormalizedResult(
+        prisma,
+        advertiserId,
+        result,
+        "initial"
+      );
+      const scrapeRun = await prisma.scrapeRun.create({
+        data: {
+          advertiserId,
+          status: "completed",
+          jobType: "initial",
+          adsFound: result.ads.length,
+          adsNew: storeResult.adsNew,
+          adsUpdated: storeResult.adsUpdated,
+          completedAt: new Date(),
+        },
+      });
+      return NextResponse.json({
+        success: true,
+        scrapeRunId: scrapeRun.id,
+        message: `Scrape completed (ScrapeCreators). ${storeResult.adsNew} new, ${storeResult.adsUpdated} updated.`,
+      });
+    }
+
     const customUrls = (advertiser.startUrls as string[] | null) ?? undefined;
     const { runId, datasetId } = await startScrapeRun({
       ...(hasCompanyId && { linkedinCompanyId: advertiser.linkedinCompanyId! }),

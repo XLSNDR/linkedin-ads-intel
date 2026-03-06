@@ -2,19 +2,28 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canAddAdvertiser } from "@/lib/services/plan-limits";
-import { checkMonthlyBudget } from "@/lib/services/ad-storage";
+import { checkMonthlyBudget, storeNormalizedResult } from "@/lib/services/ad-storage";
 import { startScrapeRun } from "@/lib/apify/client";
+import { getLinkedInScraper } from "@/lib/scrapers";
 import {
   normalizeLinkedInCompanyUrl,
   getCompanyPathSegment,
   normalizedUrlWithoutTrailingSlash,
 } from "@/lib/utils/linkedin-url";
 
+const YYYY_MM_DD = /^\d{4}-\d{2}-\d{2}$/;
+function isValidDate(s: string | undefined): boolean {
+  if (!s || typeof s !== "string") return false;
+  const t = s.trim();
+  if (!YYYY_MM_DD.test(t)) return false;
+  return !Number.isNaN(new Date(t).getTime());
+}
+
 export const dynamic = "force-dynamic";
 
 /** POST: Add advertiser (new = one-time scrape; existing = link only, no scrape). */
 export async function POST(req: Request) {
-  let body: { linkedinUrl?: string };
+  let body: { linkedinUrl?: string; startDate?: string; endDate?: string };
   try {
     body = await req.json();
   } catch {
@@ -25,6 +34,12 @@ export async function POST(req: Request) {
   }
 
   const linkedinUrl = body.linkedinUrl?.trim();
+  const startDate = body.startDate?.trim();
+  const endDate = body.endDate?.trim();
+  const scrapeOptions =
+    isValidDate(startDate) || isValidDate(endDate)
+      ? { startDate: isValidDate(startDate) ? startDate : undefined, endDate: isValidDate(endDate) ? endDate : undefined }
+      : undefined;
   if (!linkedinUrl) {
     return NextResponse.json(
       { error: "linkedinUrl is required", code: "MISSING_URL" },
@@ -90,14 +105,20 @@ export async function POST(req: Request) {
       },
     });
     if (existingLink) {
-      return NextResponse.json(
-        {
-          error: "You've already added this advertiser",
-          code: "ALREADY_ADDED",
-          advertiserId: existingAdvertiser.id,
+      // Already in list: treat as success so modal closes and user is redirected to the advertiser
+      return NextResponse.json({
+        advertiser: {
+          id: existingAdvertiser.id,
+          name: existingAdvertiser.name,
+          logoUrl: existingAdvertiser.logoUrl,
+          totalAdsFound: existingAdvertiser.totalAdsFound,
         },
-        { status: 409 }
-      );
+        userAdvertiser: {
+          id: existingLink.id,
+          status: existingLink.status,
+        },
+        scrapeStatus: "already_added",
+      });
     }
 
     const userAdvertiser = await prisma.userAdvertiser.create({
@@ -120,6 +141,44 @@ export async function POST(req: Request) {
       const budgetCheck = await checkMonthlyBudget(prisma);
       if (budgetCheck.ok) {
         try {
+          const settings = await prisma.settings.findFirst();
+          const useScrapeCreators = settings?.linkedinScraper === "scrapecreators";
+
+          if (useScrapeCreators) {
+            const scraper = await getLinkedInScraper();
+            const result = await scraper.scrape(scrapeUrl, scrapeOptions);
+            const storeResult = await storeNormalizedResult(
+              prisma,
+              existingAdvertiser.id,
+              result,
+              "initial"
+            );
+            await prisma.scrapeRun.create({
+              data: {
+                advertiserId: existingAdvertiser.id,
+                status: "completed",
+                jobType: "initial",
+                adsFound: result.ads.length,
+                adsNew: storeResult.adsNew,
+                adsUpdated: storeResult.adsUpdated,
+                completedAt: new Date(),
+              },
+            });
+            return NextResponse.json({
+              advertiser: {
+                id: existingAdvertiser.id,
+                name: existingAdvertiser.name,
+                logoUrl: existingAdvertiser.logoUrl,
+                totalAdsFound: result.ads.length,
+              },
+              userAdvertiser: {
+                id: userAdvertiser.id,
+                status: userAdvertiser.status,
+              },
+              scrapeStatus: "started",
+            });
+          }
+
           const { runId, datasetId } = await startScrapeRun({
             startUrls: [scrapeUrl],
             resultsLimit: existingAdvertiser.resultsLimit ?? undefined,
@@ -219,6 +278,44 @@ export async function POST(req: Request) {
   }
 
   try {
+    const settings = await prisma.settings.findFirst();
+    const useScrapeCreators = settings?.linkedinScraper === "scrapecreators";
+
+    if (useScrapeCreators) {
+      const scraper = await getLinkedInScraper();
+      const result = await scraper.scrape(normalized, scrapeOptions);
+      const storeResult = await storeNormalizedResult(
+        prisma,
+        advertiser.id,
+        result,
+        "initial"
+      );
+      await prisma.scrapeRun.create({
+        data: {
+          advertiserId: advertiser.id,
+          status: "completed",
+          jobType: "initial",
+          adsFound: result.ads.length,
+          adsNew: storeResult.adsNew,
+          adsUpdated: storeResult.adsUpdated,
+          completedAt: new Date(),
+        },
+      });
+      return NextResponse.json({
+        advertiser: {
+          id: advertiser.id,
+          name: advertiser.name,
+          logoUrl: advertiser.logoUrl,
+          totalAdsFound: advertiser.totalAdsFound,
+        },
+        userAdvertiser: {
+          id: userAdvertiser.id,
+          status: userAdvertiser.status,
+        },
+        scrapeStatus: "started",
+      });
+    }
+
     const { runId, datasetId } = await startScrapeRun({
       startUrls: [normalized],
       resultsLimit: advertiser.resultsLimit ?? undefined,

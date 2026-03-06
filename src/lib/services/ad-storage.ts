@@ -38,6 +38,11 @@ export async function checkMonthlyBudget(
 import type { ApifyAd } from "@/lib/apify/types";
 import { transformApifyAd } from "@/lib/apify/transform";
 import { extractCompanyIdFromAdvertiserUrl } from "@/lib/utils/linkedin-url";
+import type { LinkedInScrapeResult, NormalizedAd } from "@/lib/scrapers/types";
+import {
+  parseImpressionsRangeToMidpoint,
+  computeCountryImpressionsEstimate,
+} from "@/lib/impressions";
 
 export interface StoreAdsResult {
   adsNew: number;
@@ -150,5 +155,136 @@ export async function storeAds(
     adsNew,
     adsUpdated,
     totalProcessed: ads.length,
+  };
+}
+
+/** Persist normalized scrape result (adapter output) to DB. Both Apify and ScrapeCreators use this. */
+export async function storeNormalizedResult(
+  prisma: PrismaClient,
+  advertiserId: string,
+  result: LinkedInScrapeResult,
+  jobType: StoreAdsJobType = "initial"
+): Promise<StoreAdsResult> {
+  const { advertiser: normAdv, ads: normalizedAds } = result;
+  let adsNew = 0;
+  let adsUpdated = 0;
+  const isScheduled = jobType === "scheduled";
+
+  for (const ad of normalizedAds) {
+    const impressionsNorm = ad.impressions ?? null;
+    const midpoint = parseImpressionsRangeToMidpoint(impressionsNorm ?? "");
+    const countryEst =
+      midpoint > 0 && ad.impressionsPerCountry?.length
+        ? computeCountryImpressionsEstimate(midpoint, ad.impressionsPerCountry)
+        : null;
+    const countryEstJson =
+      countryEst && Object.keys(countryEst).length > 0
+        ? (countryEst as object)
+        : Prisma.JsonNull;
+
+    const existing = await prisma.ad.findUnique({
+      where: { externalId: ad.externalId },
+      select: { id: true },
+    });
+
+    const baseData = {
+      advertiserId,
+      adLibraryUrl: ad.adLibraryUrl || null,
+      format: ad.format,
+      bodyText: ad.bodyText ?? null,
+      headline: ad.headline ?? null,
+      callToAction: ad.callToAction ?? null,
+      destinationUrl: ad.destinationUrl ?? null,
+      mediaUrl: ad.mediaUrl ?? null,
+      mediaData: ad.mediaData ?? undefined,
+      startDate: ad.startDate ?? null,
+      endDate: ad.endDate ?? null,
+      impressions: ad.impressions ?? null,
+      impressionsEstimate: midpoint > 0 ? midpoint : null,
+      countryImpressionsEstimate: countryEstJson,
+      targetLanguage: ad.targetLanguage ?? null,
+      targetLocation: ad.targetLocation ?? null,
+      paidBy: ad.paidBy ?? null,
+      impressionsPerCountry: ad.impressionsPerCountry ?? undefined,
+      thoughtLeaderMemberUrl: ad.thoughtLeaderMemberUrl ?? null,
+      thoughtLeaderMemberImageUrl: ad.thoughtLeaderMemberImageUrl ?? null,
+      poster: ad.poster ?? null,
+      posterTitle: ad.posterTitle ?? null,
+      lastSeenAt: new Date(),
+    };
+
+    if (isScheduled && existing) {
+      await prisma.ad.update({
+        where: { externalId: ad.externalId },
+        data: {
+          startDate: baseData.startDate,
+          endDate: baseData.endDate,
+          impressions: baseData.impressions,
+          impressionsPerCountry: baseData.impressionsPerCountry,
+          countryImpressionsEstimate: baseData.countryImpressionsEstimate,
+          lastSeenAt: baseData.lastSeenAt,
+          updatedAt: new Date(),
+        },
+      });
+      adsUpdated++;
+    } else {
+      await prisma.ad.upsert({
+        where: { externalId: ad.externalId },
+        create: {
+          ...baseData,
+          externalId: ad.externalId,
+          firstSeenAt: new Date(),
+        },
+        update: isScheduled
+          ? {
+              startDate: baseData.startDate,
+              endDate: baseData.endDate,
+              impressions: baseData.impressions,
+              impressionsPerCountry: baseData.impressionsPerCountry,
+              countryImpressionsEstimate: baseData.countryImpressionsEstimate,
+              lastSeenAt: baseData.lastSeenAt,
+              updatedAt: new Date(),
+            }
+          : {
+              ...baseData,
+              externalId: ad.externalId,
+            },
+      });
+      if (existing) adsUpdated++;
+      else adsNew++;
+    }
+  }
+
+  const advUpdate: Parameters<PrismaClient["advertiser"]["update"]>[0]["data"] = {
+    lastScrapedAt: new Date(),
+    totalAdsFound: normalizedAds.length,
+    ...(normAdv.linkedinCompanyId && { linkedinCompanyId: normAdv.linkedinCompanyId }),
+    ...(normAdv.linkedinUrl && { linkedinUrl: normAdv.linkedinUrl }),
+    ...(normAdv.name && { name: normAdv.name }),
+    ...(normAdv.logoUrl != null && { logoUrl: normAdv.logoUrl }),
+    ...(normAdv.description != null && { description: normAdv.description }),
+    ...(normAdv.employeeCount != null && { employeeCount: normAdv.employeeCount }),
+    ...(normAdv.website != null && { website: normAdv.website }),
+    ...(normAdv.headquartersCity != null && { headquartersCity: normAdv.headquartersCity }),
+    ...(normAdv.headquartersState != null && { headquartersState: normAdv.headquartersState }),
+    ...(normAdv.headquartersCountry != null && { headquartersCountry: normAdv.headquartersCountry }),
+    ...(normAdv.slogan != null && { slogan: normAdv.slogan }),
+    ...(normAdv.coverImageUrl != null && { coverImageUrl: normAdv.coverImageUrl }),
+    ...(normAdv.followers != null && { followers: normAdv.followers }),
+    ...(normAdv.industry != null && { industry: normAdv.industry }),
+    ...(normAdv.size != null && { size: normAdv.size }),
+    ...(normAdv.specialties != null && { specialties: normAdv.specialties as object }),
+    ...(normAdv.funding !== undefined && normAdv.funding !== null && { funding: normAdv.funding as object }),
+  };
+
+  await prisma.advertiser.update({
+    where: { id: advertiserId },
+    data: advUpdate,
+  });
+
+  return {
+    adsNew,
+    adsUpdated,
+    totalProcessed: normalizedAds.length,
   };
 }

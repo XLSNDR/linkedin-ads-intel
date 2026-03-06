@@ -34,6 +34,8 @@ type Ad = {
   endDate: Date | null;
   lastSeenAt: Date | null;
   thoughtLeaderMemberImageUrl: string | null;
+  poster?: string | null;
+  posterTitle?: string | null;
   externalId: string;
   adLibraryUrl: string | null;
   targetLanguage: string | null;
@@ -66,7 +68,7 @@ export function ExploreAdCard({
 }: Props) {
   return (
     <article className="w-full rounded-lg border border-border bg-card overflow-hidden shadow-sm flex flex-col">
-      {/* 1. Header: logo + company + Promoted | actions (Save / Remove) */}
+      {/* 1. Header: logo + (company | thought leader: poster + posterTitle + Paid by) | actions */}
       <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-1">
         <div className="flex items-center gap-2 min-w-0">
           <div className="relative h-12 w-12 shrink-0 rounded overflow-hidden bg-muted">
@@ -79,17 +81,33 @@ export function ExploreAdCard({
               />
             ) : (
               <span className="flex h-full w-full items-center justify-center text-sm font-bold text-muted-foreground">
-                {advertiser.name?.charAt(0) ?? "?"}
+                {(ad.posterTitle ? ad.poster : advertiser.name)?.charAt(0) ?? "?"}
               </span>
             )}
           </div>
-          <div className="flex min-w-0 flex-col">
-            <span className="text-sm font-bold leading-5 truncate">
-              {advertiser.name ?? "—"}
-            </span>
-            <span className="text-xs text-muted-foreground leading-[15px]">
-              Promoted
-            </span>
+          <div className="flex min-w-0 flex-col min-h-0">
+            {ad.posterTitle?.trim() ? (
+              <>
+                <span className="text-sm font-bold leading-5 truncate">
+                  {ad.poster?.trim() ?? advertiser.name ?? "—"}
+                </span>
+                <span className="text-xs text-muted-foreground leading-[15px] truncate" title={ad.posterTitle}>
+                  {ad.posterTitle}
+                </span>
+                <span className="text-xs text-muted-foreground leading-[15px]">
+                  Paid by {advertiser.name ?? "—"}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-sm font-bold leading-5 truncate">
+                  {advertiser.name ?? "—"}
+                </span>
+                <span className="text-xs text-muted-foreground leading-[15px]">
+                  Promoted
+                </span>
+              </>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">{actionsSlot}</div>

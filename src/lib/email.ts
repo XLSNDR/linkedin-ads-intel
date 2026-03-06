@@ -26,7 +26,8 @@ export async function sendApprovalEmail(
   loginUrl: string
 ): Promise<{ ok: boolean; error?: string }> {
   const resend = getResend();
-  if (!resend) return { ok: true };
+  if (!resend)
+    return { ok: false, error: "Email not configured (RESEND_API_KEY missing)" };
 
   const displayName = name?.trim() || "there";
   const subject = "You're approved for LinkedIn Ads Intelligence!";
@@ -68,7 +69,8 @@ export async function sendApprovalEmail(
  */
 export async function sendRejectionEmail(to: string): Promise<{ ok: boolean; error?: string }> {
   const resend = getResend();
-  if (!resend) return { ok: true };
+  if (!resend)
+    return { ok: false, error: "Email not configured (RESEND_API_KEY missing)" };
 
   const subject = "Thanks for your interest";
   const html = `

@@ -73,6 +73,9 @@ export function AdminUsersClient() {
         setError(data.error ?? "Approve failed");
         return;
       }
+      if (data.emailError) {
+        setError(`User approved, but email failed: ${data.emailError}`);
+      }
       setApproveModalUser(null);
       setApprovePlanId(plans[0]?.id ?? "");
       await fetchUsers();
@@ -261,6 +264,9 @@ export function AdminUsersClient() {
               <p className="text-sm text-muted-foreground">
                 Assign a plan and send an approval email to{" "}
                 <strong>{approveModalUser.email}</strong>.
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Resend free tier only delivers to the email that verified your Resend account. Set RESEND_API_KEY in .env for localhost.
               </p>
               <label className="text-sm font-medium">
                 Plan

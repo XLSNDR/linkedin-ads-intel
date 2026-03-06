@@ -34,6 +34,8 @@ export type AdDetailApiResponse = {
   targetLanguage: string | null;
   targetLocation: string | null;
   paidBy: string | null;
+  poster: string | null;
+  posterTitle: string | null;
   adLibraryUrl: string | null;
   impressionsPerCountry: Array<{ country: string; impressions: string }> | null;
   countryData: Array<{
@@ -176,7 +178,7 @@ export function AdDetailModal({ adId, open, onOpenChange }: Props) {
               <button
                 type="button"
                 onClick={handleAdvertiserClick}
-                className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity flex-1"
+                className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity flex-1 text-left"
               >
                 <div className="relative h-9 w-9 shrink-0 rounded overflow-hidden bg-muted">
                   {data.advertiser.logoUrl ? (
@@ -188,13 +190,27 @@ export function AdDetailModal({ adId, open, onOpenChange }: Props) {
                     />
                   ) : (
                     <span className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground">
-                      {data.advertiser.name?.charAt(0) ?? "?"}
+                      {(data.posterTitle ? data.poster : data.advertiser.name)?.charAt(0) ?? "?"}
                     </span>
                   )}
                 </div>
-                <span className="font-semibold text-sm truncate">
-                  {data.advertiser.name ?? "—"}
-                </span>
+                {data.posterTitle?.trim() ? (
+                  <div className="flex min-w-0 flex-col">
+                    <span className="font-semibold text-sm truncate">
+                      {data.poster?.trim() ?? data.advertiser.name ?? "—"}
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate" title={data.posterTitle}>
+                      {data.posterTitle}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Paid by {data.advertiser.name ?? "—"}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="font-semibold text-sm truncate">
+                    {data.advertiser.name ?? "—"}
+                  </span>
+                )}
               </button>
               <div className="flex items-center gap-3 shrink-0 pr-8">
                 {data.adLibraryUrl && (
@@ -309,6 +325,8 @@ export function AdDetailModal({ adId, open, onOpenChange }: Props) {
                         targetLocation: data.targetLocation,
                         destinationUrl: data.destinationUrl,
                         paidBy: data.paidBy,
+                        poster: data.poster,
+                        posterTitle: data.posterTitle,
                         advertiserName: data.advertiser.name,
                       }}
                     />

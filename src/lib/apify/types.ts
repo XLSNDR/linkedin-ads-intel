@@ -1,6 +1,12 @@
 /**
  * Apify LinkedIn Ads Scraper type definitions
  * See: https://apify.com/silva95gustavo/linkedin-ad-library-scraper
+ *
+ * Expected Apify output (when actor is updated):
+ * - Message ads: clickUrl (first link in body), imageUrl (scraped image)
+ * - LinkedIn Article ads: clickUrl, imageUrl
+ * - Job ads: body (e.g. "%FIRSTNAME%, explore jobs at...")
+ * - Thought leader ads: thoughtLeaderMemberName, thoughtLeaderMemberJobtitle
  */
 
 /** Raw ad item from Apify dataset (actor may use id or adId) */
@@ -41,6 +47,10 @@ export interface ApifyAd {
   thoughtLeaderMemberUrl?: string;
   /** Thought leader / promoted-by: member profile image URL */
   thoughtLeaderMemberImageUrl?: string;
+  /** Thought leader: member display name (e.g. "Tom van Summeren, MSc") */
+  thoughtLeaderMemberName?: string;
+  /** Thought leader: member job title (e.g. "Salesmanager - AFAS Software") */
+  thoughtLeaderMemberJobtitle?: string;
 }
 
 /** Apify run status values */

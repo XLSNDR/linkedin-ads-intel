@@ -1,3 +1,8 @@
+# Prisma schema (single source of truth for data model)
+
+Raw contents of `prisma/schema.prisma`.
+
+```prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -77,42 +82,17 @@ model Plan {
 }
 
 // ============================================================================
-// SETTINGS (global app config)
-// ============================================================================
-
-model Settings {
-  id              String   @id @default("global")
-  linkedinScraper String   @default("apify") // "apify" | "scrapecreators"
-  updatedAt       DateTime @updatedAt
-}
-
-// ============================================================================
 // ADVERTISERS
 // ============================================================================
 
 model Advertiser {
   id                String   @id @default(cuid())
 
-  // LinkedIn data — linkedinUrl is set at creation (Add flow); linkedinCompanyId from first scrape
+  // LinkedIn data — linkedinUrl is set at creation (Add flow); linkedinCompanyId from first Apify response
   name              String
-  linkedinCompanyId String?  @unique // numeric ID (e.g. "2027242")
-  linkedinUrl       String?  @unique // normalized company page URL
-  logoUrl           String?  // from scraper advertiserLogo/logo
-
-  // Company enrichment (ScrapeCreators company lookup; optional from Apify)
-  description           String?  @db.Text
-  employeeCount         Int?
-  website               String?
-  headquartersCity      String?
-  headquartersState     String?  // location.state (e.g. "Utrecht")
-  headquartersCountry   String?
-  slogan                String?  @db.Text
-  coverImageUrl         String?
-  followers             Int?
-  industry              String?
-  size                  String?  // e.g. "51-200 employees"
-  specialties           Json?    // array of strings
-  funding               Json?    // { numberOfRounds, lastRound, investors }
+  linkedinCompanyId String?  @unique // numeric ID from Apify advertiserUrl after first scrape (e.g. "2027242")
+  linkedinUrl       String?  @unique // normalized company page URL (e.g. "https://www.linkedin.com/company/simplicate/")
+  logoUrl           String?  // from Apify advertiserLogo field
 
   // Status and scraping
   status            String   @default("approved") // "pending" | "approved" | "rejected"
@@ -204,13 +184,9 @@ model Ad {
   targetLanguage        String?
   targetLocation        String?
 
-  // Thought leader (when ad is promoted by a person)
-  // Apify: thoughtLeaderMemberUrl / thoughtLeaderMemberImageUrl
-  // ScrapeCreators: poster (name) + posterTitle (e.g. "Eigenaar ELIX ☀⚡- Winstgevend zakelijk verduurzamen")
+  // Thought leader (when ad is promoted by a person; from Apify thoughtLeaderMemberUrl / thoughtLeaderMemberImageUrl)
   thoughtLeaderMemberUrl        String?
   thoughtLeaderMemberImageUrl   String?
-  poster                        String?  // Thought leader name (ScrapeCreators)
-  posterTitle                   String?  // Thought leader title (ScrapeCreators)
 
   // Metadata
   paidBy                String?
@@ -224,8 +200,8 @@ model Ad {
   snapshots             Snapshot[]
   collectionAds         CollectionAd[]
 
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@index([externalId])
   @@index([advertiserId])
@@ -324,3 +300,4 @@ model ScrapeRun {
   @@index([advertiserId])
   @@index([status])
 }
+```
